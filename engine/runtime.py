@@ -1,8 +1,11 @@
+import threading
+
 import torch
 
 from transformers import (
     AutoTokenizer,
-    AutoModelForCausalLM
+    AutoModelForCausalLM,
+    TextIteratorStreamer,
 )
 
 
@@ -110,6 +113,44 @@ class ModelRuntime:
 
         return "\n\n".join(parts)
 
+
+    def stream(
+        self,
+        checkpoint,
+        messages,
+        max_new_tokens=512,
+        temperature=0.7,
+    ):
+        tokenizer, model, device = self.load_model(checkpoint)
+        prompt = self.make_prompt(tokenizer, messages)
+        inputs = tokenizer(prompt, return_tensors="pt")
+        inputs = {key: value.to(device) for key, value in inputs.items()}
+
+        generation_kwargs = {
+            "max_new_tokens": max_new_tokens,
+            "pad_token_id": tokenizer.pad_token_id or tokenizer.eos_token_id,
+            "eos_token_id": tokenizer.eos_token_id,
+            "repetition_penalty": 1.05,
+            "top_p": 0.8,
+            "top_k": 20,
+        }
+        if temperature > 0:
+            generation_kwargs.update({"temperature": temperature, "do_sample": True})
+        else:
+            generation_kwargs.update({"do_sample": False})
+
+        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+        generation_kwargs["streamer"] = streamer
+
+        def run_generation():
+            with torch.no_grad():
+                model.generate(**inputs, **generation_kwargs)
+
+        thread = threading.Thread(target=run_generation, daemon=True)
+        thread.start()
+        for chunk in streamer:
+            if chunk:
+                yield chunk
 
     def generate(
         self,
