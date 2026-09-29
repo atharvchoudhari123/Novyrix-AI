@@ -87,6 +87,9 @@ LumaCore 4.0
 LumaCore 5.7
 ```
 
+The script may take hours depending on internet speeds and HF downloads
+
+
 The resulting checkpoints are stored in:
 
 ```text
@@ -163,5 +166,3 @@ The quality of each LumaCore model depends on:
 - Model size
 
 Training the models does not automatically create a frontier-scale AI model. Larger and higher-quality datasets and appropriate compute are required to substantially improve model capabilities.
-# LumaCore-AI
-# LumaCore-AI
