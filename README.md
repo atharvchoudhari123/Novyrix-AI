@@ -164,3 +164,4 @@ The quality of each LumaCore model depends on:
 
 Training the models does not automatically create a frontier-scale AI model. Larger and higher-quality datasets and appropriate compute are required to substantially improve model capabilities.
 # LumaCore-AI
+# LumaCore-AI
