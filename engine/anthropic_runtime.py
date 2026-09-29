@@ -62,5 +62,35 @@ class AnthropicRuntime:
 
         return "".join(parts).strip()
 
+    def stream(
+        self,
+        model,
+        messages,
+        max_new_tokens=768,
+    ):
+        client = self._get_client()
+        system_messages = [
+            message.get("content", "")
+            for message in messages
+            if message.get("role") == "system"
+        ]
+        api_messages = [
+            {"role": message.get("role", "user"), "content": message.get("content", "")}
+            for message in messages
+            if message.get("role") in {"user", "assistant"}
+        ]
+        if not api_messages:
+            raise ValueError("At least one user or assistant message is required.")
+
+        with client.messages.stream(
+            model=model,
+            max_tokens=max_new_tokens,
+            system="\\n\\n".join(system_messages) if system_messages else None,
+            messages=api_messages,
+        ) as stream:
+            for text in stream.text_stream:
+                if text:
+                    yield text
+
 
 anthropic_runtime = AnthropicRuntime()
