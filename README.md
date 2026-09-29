@@ -1,3 +1,5 @@
+[Docs](apps/web/index.html)
+
 # LumaCore
 
 LumaCore is a self-hosted AI platform.
