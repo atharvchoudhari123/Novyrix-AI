@@ -283,7 +283,6 @@ def media_intent(text: str) -> str | None:
 @app.post("/v1/chat/completions")
 async def chat(request: ChatRequest):
     request.model = normalize_model_id(request.model)
-
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages is required.")
     if get_model(request.model) is None:
@@ -292,42 +291,41 @@ async def chat(request: ChatRequest):
     messages = [message.model_dump() for message in request.messages]
     files = [file.model_dump() for file in request.files]
     media_kind = media_intent(request.messages[-1].content)
+    response_id = f"lumacore-{uuid.uuid4().hex}"
 
-    # Dedicated media generation preserves normal chat/coding/security flows.
+    def sse(payload):
+        return "data: " + json.dumps(payload, ensure_ascii=False) + "\\n\\n"
+
     if media_kind:
         prompt = request.messages[-1].content
         try:
             from engine.media import media_runtime
-            if media_kind == "image":
-                path = media_runtime.generate_image(prompt)
-            else:
-                path = media_runtime.generate_video(prompt)
+            path = media_runtime.generate_image(prompt) if media_kind == "image" else media_runtime.generate_video(prompt)
             text = f"Generated your {media_kind}."
-            media = {
-                "type": media_kind,
-                "filename": path.name,
-                "url": media_url(path),
-                "prompt": prompt,
-            }
+            media = {"type": media_kind, "filename": path.name, "url": media_url(path), "prompt": prompt}
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
+        stream_source = None
     elif uses_fable_5_1(request.model):
-        # LumaCore 5.7 keeps its public model identity while using Claude
-        # Fable 5.1 for hosted inference. The same system prompt and uploaded
-        # text-file context used by the local engine are preserved here.
         try:
             from engine.anthropic_runtime import anthropic_runtime
             normalized = attach_files(messages, files)
             system = build_system_prompt("LumaCore 5.7", request.mode)
-            final_messages = [
-                {"role": "system", "content": system},
-                *normalized,
-            ]
-            text = anthropic_runtime.generate(
-                model=os.getenv("LUMACORE_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
-                messages=final_messages,
-                max_new_tokens=request.max_new_tokens,
-            )
+            final_messages = [{"role": "system", "content": system}, *normalized]
+            if request.stream:
+                stream_source = anthropic_runtime.stream(
+                    model=os.getenv("LUMACORE_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
+                    messages=final_messages,
+                    max_new_tokens=request.max_new_tokens,
+                )
+                text = None
+            else:
+                text = anthropic_runtime.generate(
+                    model=os.getenv("LUMACORE_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
+                    messages=final_messages,
+                    max_new_tokens=request.max_new_tokens,
+                )
+                stream_source = None
             media = None
         except Exception as error:
             raise HTTPException(status_code=502, detail=str(error)) from error
@@ -335,53 +333,58 @@ async def chat(request: ChatRequest):
         media = None
         if FAST_MODE:
             text = make_fast_response(request)
+            stream_source = iter([text]) if request.stream else None
         else:
             try:
                 from engine.engine import engine
-                text = engine.complete(
-                    model_id=request.model,
-                    messages=messages,
-                    files=files,
-                    mode=request.mode,
-                    max_new_tokens=request.max_new_tokens,
-                    plugins=request.plugins,
-                )
+                if request.stream:
+                    stream_source = engine.stream(
+                        model_id=request.model,
+                        messages=messages,
+                        files=files,
+                        mode=request.mode,
+                        max_new_tokens=request.max_new_tokens,
+                        plugins=request.plugins,
+                    )
+                    text = None
+                else:
+                    text = engine.complete(
+                        model_id=request.model,
+                        messages=messages,
+                        files=files,
+                        mode=request.mode,
+                        max_new_tokens=request.max_new_tokens,
+                        plugins=request.plugins,
+                    )
+                    stream_source = None
             except Exception as error:
                 raise HTTPException(status_code=500, detail=str(error)) from error
 
-    response_id = f"lumacore-{uuid.uuid4().hex}"
     if not request.stream:
-        response = {
-            "id": response_id,
-            "object": "chat.completion",
-            "model": request.model,
-            "choices": [{
-                "index": 0,
-                "message": {"role": "assistant", "content": text},
-                "finish_reason": "stop",
-            }],
-        }
+        response = {"id": response_id, "object": "chat.completion", "model": request.model,
+                    "choices": [{"index": 0, "message": {"role": "assistant", "content": text or ""}, "finish_reason": "stop"}]}
         if media:
             response["media"] = media
         return response
 
     def event_stream():
-        for index in range(0, len(text), 80):
-            chunk = text[index:index + 80]
-            payload = {
-                "id": response_id,
-                "object": "chat.completion.chunk",
-                "model": request.model,
-                "choices": [{
-                    "index": 0,
-                    "delta": {"content": chunk},
-                    "finish_reason": None,
-                }],
-            }
-            yield "data: " + json.dumps(payload) + "\n\n"
-        yield "data: [DONE]\n\n"
+        try:
+            if media:
+                yield sse({"id": response_id, "object": "chat.completion.chunk", "model": request.model,
+                           "choices": [{"index": 0, "delta": {"content": text}, "finish_reason": None}], "media": media})
+            else:
+                for chunk in stream_source:
+                    if chunk:
+                        yield sse({"id": response_id, "object": "chat.completion.chunk", "model": request.model,
+                                   "choices": [{"index": 0, "delta": {"content": chunk}, "finish_reason": None}]})
+        except Exception as error:
+            yield sse({"error": {"message": str(error)}})
+        yield sse({"id": response_id, "object": "chat.completion.chunk", "model": request.model,
+                   "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})
+        yield "data: [DONE]\\n\\n"
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(event_stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"})
 
 
 @app.get("/")
