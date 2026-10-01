@@ -6,7 +6,7 @@ from .model_registry import get_model, get_checkpoint, normalize_model_id
 from .runtime import runtime
 
 
-class LumaCoreEngine:
+class NovyrixEngine:
     def __init__(self):
         self.orchestrator = AgentOrchestrator()
 
@@ -19,12 +19,12 @@ class LumaCoreEngine:
         max_new_tokens=512,
         plugins=None,
     ):
-        # Accept legacy Lumen IDs while using canonical LumaCore IDs internally.
+        # Accept legacy Novyrix IDs while using canonical Novyrix IDs internally.
         canonical_model_id = normalize_model_id(model_id)
         model = get_model(canonical_model_id)
 
         if model is None:
-            raise ValueError(f"Unknown LumaCore model: {model_id}")
+            raise ValueError(f"Unknown Novyrix model: {model_id}")
 
         checkpoint = get_checkpoint(canonical_model_id)
         normalized = memory.normalize(messages)
@@ -71,7 +71,7 @@ class LumaCoreEngine:
         canonical_model_id = normalize_model_id(model_id)
         model = get_model(canonical_model_id)
         if model is None:
-            raise ValueError(f"Unknown LumaCore model: {model_id}")
+            raise ValueError(f"Unknown Novyrix model: {model_id}")
 
         checkpoint = get_checkpoint(canonical_model_id)
         normalized = memory.normalize(messages)
@@ -102,4 +102,4 @@ class LumaCoreEngine:
 
 
 
-engine = LumaCoreEngine()
+engine = NovyrixEngine()
