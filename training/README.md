@@ -1,10 +1,10 @@
-# Lumen Training
+# Novyrix Training
 
-The first Lumen training prototype uses supervised fine-tuning.
+The first Novyrix training prototype uses supervised fine-tuning.
 
 ## Dataset
 
-training/data/lumen_train.jsonl
+training/data/novyrix_train.jsonl
 
 Each example uses a conversation format:
 
@@ -29,11 +29,11 @@ python3 training/train_sft.py
 
 The default output is:
 
-training/output/lumen-3.2
+training/output/novyrix-3.2
 
 ## Scaling
 
 The included dataset is only a development example.
 
-A strong Lumen model requires much larger and higher-quality
+A strong Novyrix model requires much larger and higher-quality
 datasets, evaluation, post-training and substantially more compute.
