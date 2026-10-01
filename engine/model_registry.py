@@ -11,11 +11,11 @@ DEFAULT_CHECKPOINT = "Qwen/Qwen2.5-0.5B-Instruct"
 
 
 def normalize_model_id(model_id):
-    """Normalize legacy Lumen IDs to canonical LumaCore IDs."""
+    """Normalize legacy Novyrix IDs to canonical Novyrix IDs."""
     value = (model_id or "").strip().lower()
 
-    if value.startswith("lumen-"):
-        return "lumacore-" + value[len("lumen-"):]
+    if value.startswith("novyrix-"):
+        return "novyrix-" + value[len("novyrix-"):]
 
     return value
 
@@ -24,22 +24,22 @@ def get_models():
     if not REGISTRY_FILE.exists():
         return [
             {
-                "id": "lumacore-3.2",
-                "display_name": "LumaCore 3.2",
+                "id": "novyrix-3.2",
+                "display_name": "Novyrix 3.2",
                 "tier": "fast",
-                "checkpoint_env": "LUMACORE_3_2_CHECKPOINT",
+                "checkpoint_env": "NOVYRIX_3_2_CHECKPOINT",
             },
             {
-                "id": "lumacore-4.0",
-                "display_name": "LumaCore 4.0",
+                "id": "novyrix-4.0",
+                "display_name": "Novyrix 4.0",
                 "tier": "general",
-                "checkpoint_env": "LUMACORE_4_0_CHECKPOINT",
+                "checkpoint_env": "NOVYRIX_4_0_CHECKPOINT",
             },
             {
-                "id": "lumacore-5.7",
-                "display_name": "LumaCore 5.7",
+                "id": "novyrix-5.7",
+                "display_name": "Novyrix 5.7",
                 "tier": "advanced",
-                "checkpoint_env": "LUMACORE_5_7_CHECKPOINT",
+                "checkpoint_env": "NOVYRIX_5_7_CHECKPOINT",
             },
         ]
 
@@ -62,7 +62,7 @@ def get_checkpoint(model_id):
 
     if model is None:
         raise ValueError(
-            f"Unknown LumaCore model: {model_id}"
+            f"Unknown Novyrix model: {model_id}"
         )
 
     env_name = model.get("checkpoint_env", "")
