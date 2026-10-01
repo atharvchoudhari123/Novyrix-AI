@@ -13,4 +13,4 @@ mkdir -p models/weights
 mkdir -p training/data
 mkdir -p training/output
 
-echo "Lumen setup complete."
+echo "Novyrix setup complete."
