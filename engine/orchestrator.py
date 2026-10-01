@@ -12,6 +12,6 @@ class AgentOrchestrator:
     def enrich_prompt(self, user_text: str, tool_result):
         if not tool_result:
             return user_text
-        return user_text + "\n\nLumaCore tool result (use as evidence):\n" + repr(tool_result["result"])
+        return user_text + "\n\nNovyrix tool result (use as evidence):\n" + repr(tool_result["result"])
 
 orchestrator = AgentOrchestrator()
