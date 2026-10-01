@@ -11,7 +11,7 @@
     content="width=device-width,initial-scale=1"
 >
 
-<title>Lumen</title>
+<title>LumaCore</title>
 
 
 <style>
@@ -780,7 +780,7 @@ pre{
 
 
 <div class="logo">
-Lumen.
+LumaCore.
 </div>
 
 
@@ -807,7 +807,7 @@ id="codeTab"
 
 <div class="bottom">
 
-Lumen Engine<br>
+LumaCore Engine<br>
 Your own API
 
 </div>
@@ -823,7 +823,7 @@ Your own API
 
 
 <strong id="title">
-Lumen
+LumaCore
 </strong>
 
 
@@ -833,21 +833,21 @@ class="model"
 >
 
 
-<option value="lumen-3.2">
-Lumen 3.2
+<option value="lumacore-3.2">
+LumaCore 3.2
 </option>
 
 
 <option
-value="lumen-4.0"
+value="lumacore-4.0"
 selected
 >
-Lumen 4.0
+LumaCore 4.0
 </option>
 
 
-<option value="lumen-5.7">
-Lumen 5.7
+<option value="lumacore-5.7">
+LumaCore 5.7
 </option>
 
 
@@ -904,7 +904,7 @@ What can I help you build?
 
 
 <p>
-Your own Lumen AI.
+Your own LumaCore AI.
 </p>
 
 
@@ -931,7 +931,7 @@ Your own Lumen AI.
 
 <textarea
 id="input"
-placeholder="Message Lumen..."
+placeholder="Message LumaCore..."
 ></textarea>
 
 
@@ -975,7 +975,7 @@ Coding Playground
 
 
 <p>
-Build code using the selected Lumen model.
+Build code using the selected LumaCore model.
 </p>
 
 
@@ -995,7 +995,7 @@ font-weight:800;
 cursor:pointer;
 "
 >
-Ask Lumen
+Ask LumaCore
 </button>
 
 
@@ -1017,7 +1017,7 @@ Request
 
 
 <span id="codeModel">
-Lumen 4.0
+LumaCore 4.0
 </span>
 
 
@@ -1304,7 +1304,7 @@ async function sendMessage(){
     let assistantBubble = null;
     try{
         const response = await fetch("/v1/chat/completions", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:model.value,messages:history,mode:"chat",stream:true})});
-        if(!response.ok){let detail="Lumen request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
+        if(!response.ok){let detail="LumaCore request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
         if(!response.body) throw new Error("Streaming is not supported by this browser.");
         assistantBubble = addMessage("assistant", "");
         const reader=response.body.getReader(); const decoder=new TextDecoder(); let buffer="";
@@ -1312,11 +1312,11 @@ async function sendMessage(){
             const {value,done}=await reader.read(); if(done) break;
             buffer += decoder.decode(value,{stream:true});
             const events=buffer.split("\\n\\n"); buffer=events.pop()||"";
-            for(const event of events){for(const line of event.split("\\n")){if(!line.startsWith("data: ")) continue; const payload=line.slice(6); if(payload==="[DONE]") continue; const data=JSON.parse(payload); if(data.error) throw new Error(data.error.message||"Lumen generation failed."); const chunk=data?.choices?.[0]?.delta?.content||""; if(chunk){answer+=chunk;assistantBubble.textContent=answer;scrollBottom();}}}
+            for(const event of events){for(const line of event.split("\\n")){if(!line.startsWith("data: ")) continue; const payload=line.slice(6); if(payload==="[DONE]") continue; const data=JSON.parse(payload); if(data.error) throw new Error(data.error.message||"LumaCore generation failed."); const chunk=data?.choices?.[0]?.delta?.content||""; if(chunk){answer+=chunk;assistantBubble.textContent=answer;scrollBottom();}}}
         }
         buffer += decoder.decode();
         if(buffer.trim()){for(const line of buffer.split("\\n")){if(!line.startsWith("data: ")) continue;const payload=line.slice(6);if(payload==="[DONE]") continue;const data=JSON.parse(payload);const chunk=data?.choices?.[0]?.delta?.content||"";if(chunk){answer+=chunk;assistantBubble.textContent=answer;}}}
-        if(!answer) throw new Error("Lumen returned no answer.");
+        if(!answer) throw new Error("LumaCore returned no answer.");
         history.push({role:"assistant",content:answer});
     }catch(error){
         if(assistantBubble) assistantBubble.textContent="Error: "+error.message; else addMessage("assistant","Error: "+error.message);
@@ -1407,7 +1407,7 @@ document
                 "title"
             )
             .textContent =
-            "Lumen";
+            "LumaCore";
 
     };
 
@@ -1584,7 +1584,7 @@ document
 
 
         link.download =
-            "lumen-generated.txt";
+            "lumacore-generated.txt";
 
 
         document
