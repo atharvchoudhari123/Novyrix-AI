@@ -168,3 +168,25 @@ The quality of each LumaCore model depends on:
 - Model size
 
 Training the models does not automatically create a frontier-scale AI model. Larger and higher-quality datasets and appropriate compute are required to substantially improve model capabilities.
+
+## Agent engine
+
+LumaCore now includes a shared agent/tool layer for all model tiers. The tool ceiling differs by tier:
+
+- LumaCore 3.2: calculator and basic workspace file access.
+- LumaCore 4.0: workspace writing/editing, file search, debugging, tests, and web context tools.
+- LumaCore 5.7: the same tool surface with the highest model tier available to the deployment.
+
+Workspace write tools are restricted to the LumaCore project root. Web tools fetch HTTP(S) context with explicit timeouts.
+
+## Tokens and memberships
+
+The API now supports 100 daily tokens by default, with each chat message costing 5 tokens. Daily tokens reset by UTC date. Purchased credits are separate from the daily allowance.
+
+Membership access is enforced by the API:
+
+- Free: LumaCore 3.2
+- Core: LumaCore 3.2 + 4.0
+- Premium: LumaCore 3.2 + 4.0 + 5.7
+
+The account endpoints are `/v1/account`, `/v1/account/credits`, and `/v1/account/membership`. The credits and membership write endpoints are placeholders for future Stripe Checkout/webhook integration; they are not payment verification.
