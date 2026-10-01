@@ -37,7 +37,7 @@ class ModelRuntime:
         device = self.get_device()
 
         print(
-            f"Loading Lumen model on {device}: {checkpoint}"
+            f"Loading Novyrix model on {device}: {checkpoint}"
         )
 
         tokenizer = AutoTokenizer.from_pretrained(
