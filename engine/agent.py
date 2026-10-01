@@ -12,7 +12,7 @@ from .tools import (
 
 def _register_defaults():
     registry.register("calculator", "Evaluate arithmetic safely.", calculate)
-    registry.register("list_files", "List files in the LumaCore workspace.", list_files)
+    registry.register("list_files", "List files in the Novyrix workspace.", list_files)
     registry.register("read_file", "Read a UTF-8 text file in the workspace.", read_file)
     registry.register("write_file", "Create or replace a text file in the workspace.", write_file)
     registry.register("edit_file", "Replace one exact text span in a workspace file.", edit_file)
@@ -31,7 +31,7 @@ class ToolDecision:
     arguments: dict
     reason: str
 
-class LumaCoreAgent:
+class NovyrixAgent:
     def choose_tool(self, text: str):
         lower = (text or "").lower()
         match = re.match(r"^(?:calculate|compute)s+(.+)$", lower)
@@ -51,4 +51,4 @@ class LumaCoreAgent:
             "result": executor.execute(decision.tool, **decision.arguments),
         }
 
-agent = LumaCoreAgent()
+agent = NovyrixAgent()
