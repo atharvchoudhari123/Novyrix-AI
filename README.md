@@ -190,3 +190,4 @@ Membership access is enforced by the API:
 - Premium: Novyrix 3.2 + 4.0 + 5.7
 
 The account endpoints are `/v1/account`, `/v1/account/credits`, and `/v1/account/membership`. The credits and membership write endpoints are placeholders for future Stripe Checkout/webhook integration; they are not payment verification.
+# Novyrix-AI
