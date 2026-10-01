@@ -1,10 +1,15 @@
-from .context import build_system_prompt, attach_files
+from .context import build_system_prompt, build_tool_system_prompt, attach_files
+from .agent import registry
+from .orchestrator import AgentOrchestrator
 from .memory import memory
 from .model_registry import get_model, get_checkpoint, normalize_model_id
 from .runtime import runtime
 
 
 class LumaCoreEngine:
+    def __init__(self):
+        self.orchestrator = AgentOrchestrator()
+
     def complete(
         self,
         model_id,
@@ -30,10 +35,15 @@ class LumaCoreEngine:
                 user_message = message.get("content", "")
                 break
 
-        system = build_system_prompt(
+        tool_result = self.orchestrator.maybe_tool(canonical_model_id, user_message)
+        if tool_result:
+            user_message = self.orchestrator.enrich_prompt(user_message, tool_result)
+            normalized[-1]["content"] = user_message
+
+        system = build_tool_system_prompt(
             model["display_name"],
             mode=mode,
-            user_message=user_message,
+            tools=registry.descriptions(),
         )
 
         normalized = attach_files(normalized, files or [])
@@ -71,10 +81,15 @@ class LumaCoreEngine:
                 user_message = message.get("content", "")
                 break
 
-        system = build_system_prompt(
+        tool_result = self.orchestrator.maybe_tool(canonical_model_id, user_message)
+        if tool_result:
+            user_message = self.orchestrator.enrich_prompt(user_message, tool_result)
+            normalized[-1]["content"] = user_message
+
+        system = build_tool_system_prompt(
             model["display_name"],
             mode=mode,
-            user_message=user_message,
+            tools=registry.descriptions(),
         )
         normalized = attach_files(normalized, files or [])
         final_messages = [{"role": "system", "content": system}, *normalized]
