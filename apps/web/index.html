@@ -827,6 +827,8 @@ LumaCore
 </strong>
 
 
+<div style="display:flex;gap:8px;align-items:center">
+<span id="tokenPill" style="font-size:12px;color:#cbd0db">Tokens: —</span>
 <select
 id="model"
 class="model"
@@ -852,6 +854,8 @@ LumaCore 5.7
 
 
 </select>
+<button id="billingButton" class="small" style="font-size:12px">Membership</button>
+</div>
 
 
 </header>
@@ -1141,6 +1145,32 @@ const model =
 const history =
     [];
 
+const accountId = localStorage.getItem("lumacore-account") || ("browser-" + crypto.randomUUID());
+localStorage.setItem("lumacore-account", accountId);
+const tokenPill = document.getElementById("tokenPill");
+const billingButton = document.getElementById("billingButton");
+
+async function refreshAccount(){
+    try{
+        const response = await fetch("/v1/account",{headers:{"X-LumaCore-Account":accountId}});
+        const data = await response.json();
+        if(response.ok){
+            tokenPill.textContent = "Tokens: " + (data.daily_tokens ?? 0) + " • Credits: " + (data.credits ?? 0);
+            billingButton.textContent = (data.membership || "free").toUpperCase() + " • Billing";
+            const membership=data.membership || "free";
+            [...model.options].forEach(option=>{
+                option.disabled=(option.value==="lumacore-4.0" && membership==="free") || (option.value==="lumacore-5.7" && membership!=="premium");
+            });
+        }
+    }catch(error){ tokenPill.textContent="Tokens: unavailable"; }
+}
+refreshAccount();
+setInterval(refreshAccount,30000);
+
+billingButton.onclick=()=>{
+    alert("Billing UI is ready for Stripe integration. Core unlocks LumaCore 4.0; Premium unlocks LumaCore 5.7.");
+};
+
 
 let lastCode =
     "";
@@ -1303,7 +1333,7 @@ async function sendMessage(){
     let answer = "";
     let assistantBubble = null;
     try{
-        const response = await fetch("/v1/chat/completions", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:model.value,messages:history,mode:"chat",stream:true})});
+        const response = await fetch("/v1/chat/completions", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:model.value,messages:history,mode:"chat",stream:true}),headers:{"Content-Type":"application/json","X-LumaCore-Account":accountId}});
         if(!response.ok){let detail="LumaCore request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
         if(!response.body) throw new Error("Streaming is not supported by this browser.");
         assistantBubble = addMessage("assistant", "");
@@ -1508,7 +1538,7 @@ document
         const output=document.getElementById("code"); const state=document.getElementById("codeState");
         state.textContent="Generating…"; output.textContent=""; lastCode="";
         try{
-            const response=await fetch("/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:model.value,mode:"code",messages:[{role:"user",content:request}],stream:true})});
+            const response=await fetch("/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","X-LumaCore-Account":accountId},body:JSON.stringify({model:model.value,mode:"code",messages:[{role:"user",content:request}],stream:true})});
             if(!response.ok){let detail="Coding request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
             const reader=response.body.getReader();
             const decoder=new TextDecoder();
