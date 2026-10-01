@@ -294,7 +294,7 @@ async def chat(request: ChatRequest):
     response_id = f"lumacore-{uuid.uuid4().hex}"
 
     def sse(payload):
-        return "data: " + json.dumps(payload, ensure_ascii=False) + "\\n\\n"
+        return "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
 
     if media_kind:
         prompt = request.messages[-1].content
@@ -381,7 +381,7 @@ async def chat(request: ChatRequest):
             yield sse({"error": {"message": str(error)}})
         yield sse({"id": response_id, "object": "chat.completion.chunk", "model": request.model,
                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})
-        yield "data: [DONE]\\n\\n"
+        yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"})
