@@ -1,12 +1,12 @@
-# Lumen Architecture
+# Novyrix Architecture
 
 Browser
     |
     v
-Lumen API
+Novyrix API
     |
     v
-Lumen Engine
+Novyrix Engine
     |
     +-- Model Registry
     |
@@ -17,10 +17,10 @@ Lumen Engine
     +-- File handling
     |
     v
-Lumen Runtime
+Novyrix Runtime
     |
     v
-Lumen Model
+Novyrix Model
 
 The runtime is deliberately separated from the API so the model
 implementation can change without rewriting the frontend.
