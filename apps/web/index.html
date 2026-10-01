@@ -11,7 +11,7 @@
     content="width=device-width,initial-scale=1"
 >
 
-<title>LumaCore</title>
+<title>Novyrix</title>
 
 
 <style>
@@ -780,7 +780,7 @@ pre{
 
 
 <div class="logo">
-LumaCore.
+Novyrix.
 </div>
 
 
@@ -807,7 +807,7 @@ id="codeTab"
 
 <div class="bottom">
 
-LumaCore Engine<br>
+Novyrix Engine<br>
 Your own API
 
 </div>
@@ -823,7 +823,7 @@ Your own API
 
 
 <strong id="title">
-LumaCore
+Novyrix
 </strong>
 
 
@@ -835,21 +835,21 @@ class="model"
 >
 
 
-<option value="lumacore-3.2">
-LumaCore 3.2
+<option value="novyrix-3.2">
+Novyrix 3.2
 </option>
 
 
 <option
-value="lumacore-4.0"
+value="novyrix-4.0"
 selected
 >
-LumaCore 4.0
+Novyrix 4.0
 </option>
 
 
-<option value="lumacore-5.7">
-LumaCore 5.7
+<option value="novyrix-5.7">
+Novyrix 5.7
 </option>
 
 
@@ -908,7 +908,7 @@ What can I help you build?
 
 
 <p>
-Your own LumaCore AI.
+Your own Novyrix AI.
 </p>
 
 
@@ -935,7 +935,7 @@ Your own LumaCore AI.
 
 <textarea
 id="input"
-placeholder="Message LumaCore..."
+placeholder="Message Novyrix..."
 ></textarea>
 
 
@@ -979,7 +979,7 @@ Coding Playground
 
 
 <p>
-Build code using the selected LumaCore model.
+Build code using the selected Novyrix model.
 </p>
 
 
@@ -999,7 +999,7 @@ font-weight:800;
 cursor:pointer;
 "
 >
-Ask LumaCore
+Ask Novyrix
 </button>
 
 
@@ -1021,7 +1021,7 @@ Request
 
 
 <span id="codeModel">
-LumaCore 4.0
+Novyrix 4.0
 </span>
 
 
@@ -1145,21 +1145,21 @@ const model =
 const history =
     [];
 
-const accountId = localStorage.getItem("lumacore-account") || ("browser-" + crypto.randomUUID());
-localStorage.setItem("lumacore-account", accountId);
+const accountId = localStorage.getItem("novyrix-account") || ("browser-" + crypto.randomUUID());
+localStorage.setItem("novyrix-account", accountId);
 const tokenPill = document.getElementById("tokenPill");
 const billingButton = document.getElementById("billingButton");
 
 async function refreshAccount(){
     try{
-        const response = await fetch("/v1/account",{headers:{"X-LumaCore-Account":accountId}});
+        const response = await fetch("/v1/account",{headers:{"X-Novyrix-Account":accountId}});
         const data = await response.json();
         if(response.ok){
             tokenPill.textContent = "Tokens: " + (data.daily_tokens ?? 0) + " • Credits: " + (data.credits ?? 0);
             billingButton.textContent = (data.membership || "free").toUpperCase() + " • Billing";
             const membership=data.membership || "free";
             [...model.options].forEach(option=>{
-                option.disabled=(option.value==="lumacore-4.0" && membership==="free") || (option.value==="lumacore-5.7" && membership!=="premium");
+                option.disabled=(option.value==="novyrix-4.0" && membership==="free") || (option.value==="novyrix-5.7" && membership!=="premium");
             });
         }
     }catch(error){ tokenPill.textContent="Tokens: unavailable"; }
@@ -1168,7 +1168,7 @@ refreshAccount();
 setInterval(refreshAccount,30000);
 
 billingButton.onclick=()=>{
-    alert("Billing UI is ready for Stripe integration. Core unlocks LumaCore 4.0; Premium unlocks LumaCore 5.7.");
+    alert("Billing UI is ready for Stripe integration. Core unlocks Novyrix 4.0; Premium unlocks Novyrix 5.7.");
 };
 
 
@@ -1333,8 +1333,8 @@ async function sendMessage(){
     let answer = "";
     let assistantBubble = null;
     try{
-        const response = await fetch("/v1/chat/completions", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:model.value,messages:history,mode:"chat",stream:true}),headers:{"Content-Type":"application/json","X-LumaCore-Account":accountId}});
-        if(!response.ok){let detail="LumaCore request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
+        const response = await fetch("/v1/chat/completions", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:model.value,messages:history,mode:"chat",stream:true}),headers:{"Content-Type":"application/json","X-Novyrix-Account":accountId}});
+        if(!response.ok){let detail="Novyrix request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
         if(!response.body) throw new Error("Streaming is not supported by this browser.");
         assistantBubble = addMessage("assistant", "");
         const reader=response.body.getReader();
@@ -1349,7 +1349,7 @@ async function sendMessage(){
                 if(payload === "[DONE]") continue;
                 if(!payload) continue;
                 const data = JSON.parse(payload);
-                if(data.error) throw new Error(data.error.message || "LumaCore generation failed.");
+                if(data.error) throw new Error(data.error.message || "Novyrix generation failed.");
                 const chunk = data?.choices?.[0]?.delta?.content || "";
                 if(chunk){
                     answer += chunk;
@@ -1371,7 +1371,7 @@ async function sendMessage(){
         buffer += decoder.decode().replace(/\\r/g, "");
         if(buffer.trim()) handleSSEEvent(buffer);
 
-        if(!answer) throw new Error("LumaCore returned no answer.");
+        if(!answer) throw new Error("Novyrix returned no answer.");
         history.push({role:"assistant",content:answer});
     }catch(error){
         if(assistantBubble) assistantBubble.textContent="Error: "+error.message; else addMessage("assistant","Error: "+error.message);
@@ -1462,7 +1462,7 @@ document
                 "title"
             )
             .textContent =
-            "LumaCore";
+            "Novyrix";
 
     };
 
@@ -1538,7 +1538,7 @@ document
         const output=document.getElementById("code"); const state=document.getElementById("codeState");
         state.textContent="Generating…"; output.textContent=""; lastCode="";
         try{
-            const response=await fetch("/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","X-LumaCore-Account":accountId},body:JSON.stringify({model:model.value,mode:"code",messages:[{role:"user",content:request}],stream:true})});
+            const response=await fetch("/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","X-Novyrix-Account":accountId},body:JSON.stringify({model:model.value,mode:"code",messages:[{role:"user",content:request}],stream:true})});
             if(!response.ok){let detail="Coding request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
             const reader=response.body.getReader();
             const decoder=new TextDecoder();
@@ -1670,7 +1670,7 @@ document
 
 
         link.download =
-            "lumacore-generated.txt";
+            "novyrix-generated.txt";
 
 
         document
