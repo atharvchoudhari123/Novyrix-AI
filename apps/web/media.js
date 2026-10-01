@@ -35,7 +35,7 @@
     buttons.forEach(b => b.classList.toggle("active", b.dataset.media === mode));
     if (mode === "image") input.placeholder = "Describe the image you want...";
     else if (mode === "video") input.placeholder = "Describe the video you want...";
-    else input.placeholder = "Message LumaCore...";
+    else input.placeholder = "Message Novyrix...";
   }
 
   buttons.forEach(button => button.addEventListener("click", () => {
@@ -67,7 +67,7 @@
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = data.filename || (kind === "image" ? "lumacore-image.png" : "lumacore-video.mp4");
+    link.download = data.filename || (kind === "image" ? "novyrix-image.png" : "novyrix-video.mp4");
     link.textContent = "Download";
     card.appendChild(link);
     inner.appendChild(card);
@@ -80,7 +80,7 @@
   function addStatus(text) {
     const row = document.createElement("div");
     row.className = "message";
-    row.innerHTML = `<div class="avatar ai">L</div><div class="body"><div class="meta">LumaCore media</div><div class="bubble media-status"></div></div>`;
+    row.innerHTML = `<div class="avatar ai">L</div><div class="body"><div class="meta">Novyrix media</div><div class="bubble media-status"></div></div>`;
     row.querySelector(".media-status").textContent = text;
     inner.appendChild(row);
     return row;
