@@ -154,6 +154,21 @@ def detect_mode(user_message: str, explicit_mode: Optional[str] = None) -> str:
     return "chat"
 
 
+def build_tool_system_prompt(model_name, mode="chat", tools=None):
+    base = build_system_prompt(model_name, mode)
+    if not tools:
+        return base
+    tool_lines = "\n".join(f"- {item['name']}: {item['description']}" for item in tools)
+    return (
+        base
+        + "\n\nAgent tool policy:\n"
+        + "You are connected to a tool engine. Use tool results as evidence. "
+        + "Never claim an action happened unless a tool actually returned success."
+        + "\nAvailable tools:\n"
+        + tool_lines
+    )
+
+
 def build_system_prompt(model_name, mode="chat", user_message=None):
     if mode in (None, "", "auto"):
         mode = detect_mode(user_message or "", mode)
