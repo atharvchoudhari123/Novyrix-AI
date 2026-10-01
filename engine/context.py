@@ -4,7 +4,7 @@ from typing import Any, Iterable, Optional
 
 
 CORE_INSTRUCTIONS = """
-You are {model_name}, a local AI assistant created by LumaCore.
+You are {model_name}, a local AI assistant created by Novyrix.
 
 Help the user accomplish the task accurately, clearly, and practically.
 
@@ -185,21 +185,21 @@ def build_system_prompt(model_name, mode="chat", user_message=None):
         prompt += """
         
 Tier behavior:
-You are the lightweight LumaCore 3.2 tier. Prioritize straightforward tasks,
+You are the lightweight Novyrix 3.2 tier. Prioritize straightforward tasks,
 concise answers, and practical solutions.
 """.strip()
     elif "4.0" in lower:
         prompt += """
         
 Tier behavior:
-You are the balanced LumaCore 4.0 tier. Handle general-purpose reasoning,
+You are the balanced Novyrix 4.0 tier. Handle general-purpose reasoning,
 coding, debugging, and explanations with useful detail.
 """.strip()
     elif "5.7" in lower:
         prompt += """
         
 Tier behavior:
-You are the high-capacity LumaCore 5.7 tier. For complex tasks, reason
+You are the high-capacity Novyrix 5.7 tier. For complex tasks, reason
 carefully, check assumptions, consider edge cases, and provide technically
 precise solutions.
 """.strip()
@@ -212,7 +212,7 @@ def _clean_file_text(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
         return text
     return text[:max_chars] + (
-        "\n\n[LumaCore: remaining file content omitted because of context limits]"
+        "\n\n[Novyrix: remaining file content omitted because of context limits]"
     )
 
 
