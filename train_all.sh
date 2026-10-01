@@ -19,7 +19,7 @@ OUTPUT_DIR="$ROOT/training/output"
 mkdir -p "$DATA_DIR" "$OUTPUT_DIR"
 
 printf '\n========================================\n'
-printf ' LUMACORE TIER TRAINING\n'
+printf ' NOVYRIX TIER TRAINING\n'
 printf '========================================\n\n'
 printf 'Building fresh tier-specific datasets.\n'
 printf 'The old 3-example dataset is not used.\n\n'
@@ -35,8 +35,8 @@ data_dir.mkdir(parents=True, exist_ok=True)
 seed = 20260916
 
 common = [
-    ("identity", "What are you?", "I am LumaCore, a self-hosted AI assistant designed to work locally with the capabilities enabled by this project."),
-    ("identity", "What is LumaCore?", "LumaCore is a local-first AI platform with model tiers, file context, plugins, coding tools, media generation, and a self-hosted API."),
+    ("identity", "What are you?", "I am Novyrix, a self-hosted AI assistant designed to work locally with the capabilities enabled by this project."),
+    ("identity", "What is Novyrix?", "Novyrix is a local-first AI platform with model tiers, file context, plugins, coding tools, media generation, and a self-hosted API."),
     ("reasoning", "How should a complex problem be solved?", "Identify the goal and constraints, break the problem into smaller verifiable steps, check important intermediate results, and summarize the conclusion."),
     ("reasoning", "What should you do when a request is ambiguous?", "State the ambiguity briefly, identify the missing information that changes the answer, and ask for only the clarification needed."),
     ("reasoning", "How should uncertainty be handled?", "Separate known facts from assumptions, state meaningful uncertainty, and avoid presenting guesses as verified facts."),
@@ -48,7 +48,7 @@ common = [
     ("coding", "How should a long-running task report progress?", "Report meaningful stages and measurable progress without inventing completed work or hiding failures."),
     ("files", "How should an uploaded file be handled?", "Inspect only the content needed for the task, preserve the file's terminology and structure when summarizing it, and cite file-derived claims when citations are available."),
     ("files", "What if a requested fact is not in the uploaded file?", "Say that the source does not support the fact instead of silently filling the gap with an assumption."),
-    ("plugins", "What is a plugin used for?", "A plugin connects LumaCore to an external service or workflow so it can retrieve information or perform an authorized action."),
+    ("plugins", "What is a plugin used for?", "A plugin connects Novyrix to an external service or workflow so it can retrieve information or perform an authorized action."),
     ("plugins", "When should an external connector be used?", "Use one when the task depends on the user's connected service or requires an action that the local application cannot perform by itself."),
     ("security", "How should a security review begin?", "Define the system and scope, identify assets and trust boundaries, inspect inputs and permissions, look for concrete vulnerabilities, and document evidence and remediation."),
     ("security", "What should a security report contain?", "Include the affected component, reproducible evidence, impact, severity rationale, and a concrete defensive remediation."),
@@ -116,9 +116,9 @@ variants = {
         ("Why should training examples include failure cases?", "Failure cases teach the model to recognize invalid inputs, uncertainty, and situations where it should explain a limitation instead of fabricating a result."),
     ],
     "identity": [
-        ("What is the role of LumaCore 3.2?", "LumaCore 3.2 is the lightweight tier for straightforward tasks and lower resource use."),
-        ("What is the role of LumaCore 4.0?", "LumaCore 4.0 is the balanced tier for general-purpose reasoning and coding work."),
-        ("What is the role of LumaCore 5.7?", "LumaCore 5.7 is the highest-capacity tier in this project for demanding supported reasoning and coding workloads."),
+        ("What is the role of Novyrix 3.2?", "Novyrix 3.2 is the lightweight tier for straightforward tasks and lower resource use."),
+        ("What is the role of Novyrix 4.0?", "Novyrix 4.0 is the balanced tier for general-purpose reasoning and coding work."),
+        ("What is the role of Novyrix 5.7?", "Novyrix 5.7 is the highest-capacity tier in this project for demanding supported reasoning and coding workloads."),
     ],
     "plugins": [
         ("How should an authorized external action be handled?", "Confirm the action parameters, use the connected service through its supported interface, report what was actually done, and surface any failure."),
@@ -135,11 +135,11 @@ tiers = {
 
 def make_example(category, question, answer, tier, index):
     if tier == "3.2":
-        system = "You are LumaCore 3.2, a concise and practical local AI assistant."
+        system = "You are Novyrix 3.2, a concise and practical local AI assistant."
     elif tier == "4.0":
-        system = "You are LumaCore 4.0, a balanced local AI assistant. Give accurate, useful explanations and practical steps."
+        system = "You are Novyrix 4.0, a balanced local AI assistant. Give accurate, useful explanations and practical steps."
     else:
-        system = "You are LumaCore 5.7, a high-capacity local AI assistant. Reason carefully, verify assumptions, and give technically precise answers."
+        system = "You are Novyrix 5.7, a high-capacity local AI assistant. Reason carefully, verify assumptions, and give technically precise answers."
     prefixes = ["", "Please ", "Can you ", "I need to know: ", "Explain "]
     q = question
     if category not in {"coding", "math"} and index % 5 == 0:
@@ -161,15 +161,15 @@ for tier, (count, weights) in tiers.items():
         candidates = [x for x in pool if x[0] == category]
         examples.append(make_example(category, *rng.choice(candidates)[1:], tier, i))
     rng.shuffle(examples)
-    path = data_dir / f"lumacore_{tier.replace('.', '_')}.jsonl"
+    path = data_dir / f"novyrix_{tier.replace('.', '_')}.jsonl"
     with path.open("w", encoding="utf-8") as f:
         for example in examples:
             f.write(json.dumps(example, ensure_ascii=False) + "\n")
-    print(f"Generated {len(examples)} examples for LumaCore {tier}: {path}")
+    print(f"Generated {len(examples)} examples for Novyrix {tier}: {path}")
 
-old = data_dir / "lumen_train.jsonl"
+old = data_dir / "novyrix_train.jsonl"
 if old.exists():
-    backup = data_dir / "lumen_train.legacy.jsonl"
+    backup = data_dir / "novyrix_train.legacy.jsonl"
     old.replace(backup)
     print(f"Moved legacy dataset to {backup}")
 PY
@@ -186,13 +186,13 @@ from trl import SFTTrainer
 from peft import LoraConfig
 
 ROOT = Path(__file__).resolve().parents[1]
-TIER = os.environ["LUMACORE_TIER"]
-BASE_MODEL = os.environ["LUMACORE_BASE_MODEL"]
-DATASET = Path(os.environ["LUMACORE_DATASET"])
-OUTPUT = Path(os.environ["LUMACORE_OUTPUT"])
-EPOCHS = float(os.environ["LUMACORE_EPOCHS"])
-LR = float(os.environ["LUMACORE_LR"])
-GRAD_ACCUM = int(os.environ["LUMACORE_GRAD_ACCUM"])
+TIER = os.environ["NOVYRIX_TIER"]
+BASE_MODEL = os.environ["NOVYRIX_BASE_MODEL"]
+DATASET = Path(os.environ["NOVYRIX_DATASET"])
+OUTPUT = Path(os.environ["NOVYRIX_OUTPUT"])
+EPOCHS = float(os.environ["NOVYRIX_EPOCHS"])
+LR = float(os.environ["NOVYRIX_LR"])
+GRAD_ACCUM = int(os.environ["NOVYRIX_GRAD_ACCUM"])
 
 
 def choose_device():
@@ -212,7 +212,7 @@ def main():
     examples = sum(1 for _ in DATASET.open(encoding="utf-8"))
 
     print("\n========================================")
-    print(f" LUMACORE {TIER} TRAINING")
+    print(f" NOVYRIX {TIER} TRAINING")
     print("========================================")
     print(f"Base model: {BASE_MODEL}")
     print(f"Dataset:    {DATASET}")
@@ -290,7 +290,7 @@ def main():
         "method": "LoRA fine-tuning, merged into final checkpoint",
     }
     (OUTPUT / "training_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
-    print(f"Training complete: LumaCore {TIER}")
+    print(f"Training complete: Novyrix {TIER}")
     print(f"Merged checkpoint: {OUTPUT}")
 
 
@@ -325,24 +325,24 @@ for tier in 3.2 4.0 5.7; do
   esac
 
   safe_tier="${tier//./_}"
-  dataset="$DATA_DIR/lumacore_${safe_tier}.jsonl"
-  output="$OUTPUT_DIR/lumacore-${tier}"
+  dataset="$DATA_DIR/novyrix_${safe_tier}.jsonl"
+  output="$OUTPUT_DIR/novyrix-${tier}"
 
   echo
   echo "----------------------------------------"
-  echo "Training LumaCore $tier"
+  echo "Training Novyrix $tier"
   echo "Base model: $base"
   echo "Dataset:    $dataset ($count examples)"
   echo "Output:     $output"
   echo "----------------------------------------"
 
-  LUMACORE_TIER="$tier" \
-  LUMACORE_BASE_MODEL="$base" \
-  LUMACORE_DATASET="$dataset" \
-  LUMACORE_OUTPUT="$output" \
-  LUMACORE_EPOCHS="$epochs" \
-  LUMACORE_LR="$lr" \
-  LUMACORE_GRAD_ACCUM="$accum" \
+  NOVYRIX_TIER="$tier" \
+  NOVYRIX_BASE_MODEL="$base" \
+  NOVYRIX_DATASET="$dataset" \
+  NOVYRIX_OUTPUT="$output" \
+  NOVYRIX_EPOCHS="$epochs" \
+  NOVYRIX_LR="$lr" \
+  NOVYRIX_GRAD_ACCUM="$accum" \
   "$PYTHON" "$ROOT/training/train_tier.py"
 done
 
@@ -354,9 +354,9 @@ import re
 env = Path(".env")
 text = env.read_text(encoding="utf-8")
 updates = {
-    "LUMACORE_3_2_CHECKPOINT": "./training/output/lumacore-3.2",
-    "LUMACORE_4_0_CHECKPOINT": "./training/output/lumacore-4.0",
-    "LUMACORE_5_7_CHECKPOINT": "./training/output/lumacore-5.7",
+    "NOVYRIX_3_2_CHECKPOINT": "./training/output/novyrix-3.2",
+    "NOVYRIX_4_0_CHECKPOINT": "./training/output/novyrix-4.0",
+    "NOVYRIX_5_7_CHECKPOINT": "./training/output/novyrix-5.7",
 }
 for key, value in updates.items():
     pattern = rf"(?m)^{re.escape(key)}=.*$"
@@ -372,10 +372,10 @@ fi
 
 echo
 echo "========================================"
-echo " ALL LUMACORE TIERS TRAINED"
+echo " ALL NOVYRIX TIERS TRAINED"
 echo "========================================"
-echo "3.2 -> training/output/lumacore-3.2 (300 examples)"
-echo "4.0 -> training/output/lumacore-4.0 (450 examples)"
-echo "5.7 -> training/output/lumacore-5.7 (600 examples)"
+echo "3.2 -> training/output/novyrix-3.2 (300 examples)"
+echo "4.0 -> training/output/novyrix-4.0 (450 examples)"
+echo "5.7 -> training/output/novyrix-5.7 (600 examples)"
 echo ""
 echo "The generated checkpoints are merged models and can be loaded by the normal runtime."
