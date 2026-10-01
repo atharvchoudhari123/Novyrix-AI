@@ -27,8 +27,8 @@ MEDIA.mkdir(parents=True, exist_ok=True)
 
 ACCOUNTS = ROOT / "storage" / "accounts"
 ACCOUNTS.mkdir(parents=True, exist_ok=True)
-DAILY_TOKENS = int(os.getenv("LUMACORE_DAILY_TOKENS", "100"))
-MESSAGE_COST = int(os.getenv("LUMACORE_MESSAGE_COST", "5"))
+DAILY_TOKENS = int(os.getenv("NOVYRIX_DAILY_TOKENS", "100"))
+MESSAGE_COST = int(os.getenv("NOVYRIX_MESSAGE_COST", "5"))
 
 def _safe_account_id(account_id: str) -> str:
     value = "".join(ch for ch in str(account_id) if ch.isalnum() or ch in "._-")
@@ -58,9 +58,9 @@ def _save_account(account_id: str, data: dict):
 
 def _model_allowed(model_id: str, membership: str) -> bool:
     return (
-        model_id == "lumacore-3.2"
-        or (model_id == "lumacore-4.0" and membership in {"core", "premium"})
-        or (model_id == "lumacore-5.7" and membership == "premium")
+        model_id == "novyrix-3.2"
+        or (model_id == "novyrix-4.0" and membership in {"core", "premium"})
+        or (model_id == "novyrix-5.7" and membership == "premium")
     )
 
 def _reserve_message(account_id: str, model_id: str):
@@ -84,9 +84,9 @@ def _reserve_message(account_id: str, model_id: str):
     return data, source
 
 
-app = FastAPI(title="LumaCore API", version="0.5.0")
+app = FastAPI(title="Novyrix API", version="0.5.0")
 
-FAST_MODE = os.getenv("LUMACORE_FAST_MODE", "false").strip().lower() == "true"
+FAST_MODE = os.getenv("NOVYRIX_FAST_MODE", "false").strip().lower() == "true"
 
 
 class Message(BaseModel):
@@ -102,7 +102,7 @@ class ChatFile(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    model: str = "lumacore-4.0"
+    model: str = "novyrix-4.0"
     messages: list[Message] = Field(default_factory=list)
     files: list[ChatFile] = Field(default_factory=list)
     mode: str = "chat"
@@ -126,8 +126,8 @@ def media_url(path: Path) -> str:
 
 def uses_fable_5_1(model_id: str) -> bool:
     return (
-        model_id == "lumacore-5.7"
-        and os.getenv("LUMACORE_5_7_PROVIDER", "local").strip().lower() == "anthropic"
+        model_id == "novyrix-5.7"
+        and os.getenv("NOVYRIX_5_7_PROVIDER", "local").strip().lower() == "anthropic"
     )
 
 
@@ -135,12 +135,12 @@ def uses_fable_5_1(model_id: str) -> bool:
 async def health():
     return {
         "ok": True,
-        "service": "lumacore-api",
+        "service": "novyrix-api",
         "version": "0.5.0",
         "fast_mode": FAST_MODE,
         "fable_5_1": {
-            "enabled": uses_fable_5_1("lumacore-5.7"),
-            "model": os.getenv("LUMACORE_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
+            "enabled": uses_fable_5_1("novyrix-5.7"),
+            "model": os.getenv("NOVYRIX_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
         },
         "media": {"image": True, "video": True},
     }
@@ -154,7 +154,7 @@ async def models():
             {
                 "id": model["id"],
                 "object": "model",
-                "owned_by": "lumacore",
+                "owned_by": "novyrix",
                 "display_name": model["display_name"],
                 "capabilities": model.get("capabilities", []),
             }
@@ -180,7 +180,7 @@ async def plugin_run(plugin_id: str, arguments: dict | None = None):
 
 @app.post("/v1/files")
 async def upload_files(files: list[UploadFile] = File(...)):
-    max_size = int(os.getenv("LUMACORE_MAX_FILE_MB", "50")) * 1024 * 1024
+    max_size = int(os.getenv("NOVYRIX_MAX_FILE_MB", "50")) * 1024 * 1024
     text_extensions = {
         ".txt", ".md", ".json", ".js", ".ts", ".tsx", ".jsx", ".py",
         ".html", ".css", ".csv", ".xml", ".yaml", ".yml", ".sql",
@@ -232,11 +232,11 @@ async def media_capabilities():
     return {
         "image_generation": {
             "enabled": True,
-            "model": os.getenv("LUMACORE_IMAGE_MODEL", "stable-diffusion-v1-5/stable-diffusion-v1-5"),
+            "model": os.getenv("NOVYRIX_IMAGE_MODEL", "stable-diffusion-v1-5/stable-diffusion-v1-5"),
         },
         "video_generation": {
             "enabled": True,
-            "model": os.getenv("LUMACORE_VIDEO_MODEL", "zai-org/CogVideoX-2b"),
+            "model": os.getenv("NOVYRIX_VIDEO_MODEL", "zai-org/CogVideoX-2b"),
         },
     }
 
@@ -312,8 +312,8 @@ def make_fast_response(request: ChatRequest) -> str:
     lower = user_text.lower()
     if lower in {"hi", "hello", "hey", "yo", "hiya"}:
         return "Hello! How can I help you today?"
-    if lower in {"who are you", "what are you", "what is lumacore"}:
-        return "I'm LumaCore, an AI assistant."
+    if lower in {"who are you", "what are you", "what is novyrix"}:
+        return "I'm Novyrix, an AI assistant."
     if request.mode == "code":
         return "Coding mode is ready. Describe the project or code you want to build."
     if request.mode == "security":
@@ -341,10 +341,10 @@ def media_intent(text: str) -> str | None:
 
 
 @app.get("/v1/account")
-async def account(x_lumacore_account: str = Header(default="default")):
-    data = _account_state(x_lumacore_account)
+async def account(x_novyrix_account: str = Header(default="default")):
+    data = _account_state(x_novyrix_account)
     return {
-        "account": x_lumacore_account,
+        "account": x_novyrix_account,
         "membership": data["membership"],
         "daily_tokens": data["daily_tokens"],
         "credits": data["credits"],
@@ -353,39 +353,39 @@ async def account(x_lumacore_account: str = Header(default="default")):
     }
 
 @app.post("/v1/account/credits")
-async def add_credits(payload: dict, x_lumacore_account: str = Header(default="default")):
+async def add_credits(payload: dict, x_novyrix_account: str = Header(default="default")):
     amount = int(payload.get("credits", 0))
     if amount <= 0 or amount > 100000:
         raise HTTPException(status_code=400, detail="credits must be between 1 and 100000.")
-    data = _account_state(x_lumacore_account)
+    data = _account_state(x_novyrix_account)
     data["credits"] += amount
-    _save_account(x_lumacore_account, data)
+    _save_account(x_novyrix_account, data)
     return {"credits": data["credits"], "membership": data["membership"]}
 
 @app.post("/v1/account/membership")
-async def set_membership(payload: dict, x_lumacore_account: str = Header(default="default")):
+async def set_membership(payload: dict, x_novyrix_account: str = Header(default="default")):
     membership = str(payload.get("membership", "free")).lower()
     if membership not in {"free", "core", "premium"}:
         raise HTTPException(status_code=400, detail="membership must be free, core, or premium.")
-    data = _account_state(x_lumacore_account)
+    data = _account_state(x_novyrix_account)
     data["membership"] = membership
-    _save_account(x_lumacore_account, data)
+    _save_account(x_novyrix_account, data)
     return {"membership": membership, "daily_tokens": data["daily_tokens"], "credits": data["credits"]}
 
 @app.post("/v1/chat/completions")
-async def chat(request: ChatRequest, x_lumacore_account: str = Header(default="default")):
+async def chat(request: ChatRequest, x_novyrix_account: str = Header(default="default")):
     request.model = normalize_model_id(request.model)
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages is required.")
     if get_model(request.model) is None:
         raise HTTPException(status_code=400, detail=f"Unknown model: {request.model}")
 
-    account, token_source = _reserve_message(x_lumacore_account, request.model)
+    account, token_source = _reserve_message(x_novyrix_account, request.model)
 
     messages = [message.model_dump() for message in request.messages]
     files = [file.model_dump() for file in request.files]
     media_kind = media_intent(request.messages[-1].content)
-    response_id = f"lumacore-{uuid.uuid4().hex}"
+    response_id = f"novyrix-{uuid.uuid4().hex}"
 
     def sse(payload):
         return "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
@@ -404,18 +404,18 @@ async def chat(request: ChatRequest, x_lumacore_account: str = Header(default="d
         try:
             from engine.anthropic_runtime import anthropic_runtime
             normalized = attach_files(messages, files)
-            system = build_system_prompt("LumaCore 5.7", request.mode)
+            system = build_system_prompt("Novyrix 5.7", request.mode)
             final_messages = [{"role": "system", "content": system}, *normalized]
             if request.stream:
                 stream_source = anthropic_runtime.stream(
-                    model=os.getenv("LUMACORE_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
+                    model=os.getenv("NOVYRIX_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
                     messages=final_messages,
                     max_new_tokens=request.max_new_tokens,
                 )
                 text = None
             else:
                 text = anthropic_runtime.generate(
-                    model=os.getenv("LUMACORE_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
+                    model=os.getenv("NOVYRIX_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
                     messages=final_messages,
                     max_new_tokens=request.max_new_tokens,
                 )
@@ -486,7 +486,7 @@ async def chat(request: ChatRequest, x_lumacore_account: str = Header(default="d
 async def index():
     page = ROOT / "apps" / "web" / "index.html"
     if not page.exists():
-        raise HTTPException(status_code=404, detail="LumaCore web app not found.")
+        raise HTTPException(status_code=404, detail="Novyrix web app not found.")
     html = page.read_text(encoding="utf-8")
     if "/media.js" not in html:
         html = html.replace("</body>", '<script src="/media.js"></script>\n</body>')
@@ -497,7 +497,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "apps.api.server:app",
-        host=os.getenv("LUMACORE_HOST", "0.0.0.0"),
-        port=int(os.getenv("LUMACORE_PORT", "3000")),
+        host=os.getenv("NOVYRIX_HOST", "0.0.0.0"),
+        port=int(os.getenv("NOVYRIX_PORT", "3000")),
         reload=False,
     )
