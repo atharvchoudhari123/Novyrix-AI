@@ -1307,15 +1307,40 @@ async function sendMessage(){
         if(!response.ok){let detail="LumaCore request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
         if(!response.body) throw new Error("Streaming is not supported by this browser.");
         assistantBubble = addMessage("assistant", "");
-        const reader=response.body.getReader(); const decoder=new TextDecoder(); let buffer="";
+        const reader=response.body.getReader();
+        const decoder=new TextDecoder();
+        let buffer="";
+
+        const handleSSEEvent = (event) => {
+            const lines = event.replace(/\\r/g, "").split("\\n");
+            for(const line of lines){
+                if(!line.startsWith("data:")) continue;
+                const payload = line.slice(5).trimStart();
+                if(payload === "[DONE]") continue;
+                if(!payload) continue;
+                const data = JSON.parse(payload);
+                if(data.error) throw new Error(data.error.message || "LumaCore generation failed.");
+                const chunk = data?.choices?.[0]?.delta?.content || "";
+                if(chunk){
+                    answer += chunk;
+                    assistantBubble.textContent = answer;
+                    scrollBottom();
+                }
+            }
+        };
+
         while(true){
-            const {value,done}=await reader.read(); if(done) break;
-            buffer += decoder.decode(value,{stream:true});
-            const events=buffer.split("\\n\\n"); buffer=events.pop()||"";
-            for(const event of events){for(const line of event.split("\\n")){if(!line.startsWith("data: ")) continue; const payload=line.slice(6); if(payload==="[DONE]") continue; const data=JSON.parse(payload); if(data.error) throw new Error(data.error.message||"LumaCore generation failed."); const chunk=data?.choices?.[0]?.delta?.content||""; if(chunk){answer+=chunk;assistantBubble.textContent=answer;scrollBottom();}}}
+            const {value,done} = await reader.read();
+            if(done) break;
+            buffer += decoder.decode(value,{stream:true}).replace(/\\r/g, "");
+            const events = buffer.split("\\n\\n");
+            buffer = events.pop() || "";
+            for(const event of events) handleSSEEvent(event);
         }
-        buffer += decoder.decode();
-        if(buffer.trim()){for(const line of buffer.split("\\n")){if(!line.startsWith("data: ")) continue;const payload=line.slice(6);if(payload==="[DONE]") continue;const data=JSON.parse(payload);const chunk=data?.choices?.[0]?.delta?.content||"";if(chunk){answer+=chunk;assistantBubble.textContent=answer;}}}
+
+        buffer += decoder.decode().replace(/\\r/g, "");
+        if(buffer.trim()) handleSSEEvent(buffer);
+
         if(!answer) throw new Error("LumaCore returned no answer.");
         history.push({role:"assistant",content:answer});
     }catch(error){
@@ -1485,8 +1510,39 @@ document
         try{
             const response=await fetch("/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:model.value,mode:"code",messages:[{role:"user",content:request}],stream:true})});
             if(!response.ok){let detail="Coding request failed.";try{const data=await response.json();detail=data.detail||detail;}catch(_error){}throw new Error(detail);}
-            const reader=response.body.getReader(); const decoder=new TextDecoder(); let buffer="";
-            while(true){const {value,done}=await reader.read();if(done) break;buffer+=decoder.decode(value,{stream:true});const events=buffer.split("\\n\\n");buffer=events.pop()||"";for(const event of events){for(const line of event.split("\\n")){if(!line.startsWith("data: ")) continue;const payload=line.slice(6);if(payload==="[DONE]") continue;const data=JSON.parse(payload);if(data.error) throw new Error(data.error.message||"Coding generation failed.");const chunk=data?.choices?.[0]?.delta?.content||"";if(chunk){lastCode+=chunk;output.textContent=lastCode;output.parentElement.scrollTop=output.parentElement.scrollHeight;}}}}
+            const reader=response.body.getReader();
+            const decoder=new TextDecoder();
+            let buffer="";
+
+            const handleSSEEvent = (event) => {
+                const lines = event.replace(/\\r/g, "").split("\\n");
+                for(const line of lines){
+                    if(!line.startsWith("data:")) continue;
+                    const payload = line.slice(5).trimStart();
+                    if(payload === "[DONE]") continue;
+                    if(!payload) continue;
+                    const data = JSON.parse(payload);
+                    if(data.error) throw new Error(data.error.message || "Coding generation failed.");
+                    const chunk = data?.choices?.[0]?.delta?.content || "";
+                    if(chunk){
+                        lastCode += chunk;
+                        output.textContent = lastCode;
+                        output.parentElement.scrollTop = output.parentElement.scrollHeight;
+                    }
+                }
+            };
+
+            while(true){
+                const {value,done} = await reader.read();
+                if(done) break;
+                buffer += decoder.decode(value,{stream:true}).replace(/\\r/g, "");
+                const events = buffer.split("\\n\\n");
+                buffer = events.pop() || "";
+                for(const event of events) handleSSEEvent(event);
+            }
+
+            buffer += decoder.decode().replace(/\\r/g, "");
+            if(buffer.trim()) handleSSEEvent(buffer);
             if(!lastCode) throw new Error("No code returned."); state.textContent="Ready";
         }catch(error){output.textContent=error.message;state.textContent="Failed";}
     };
