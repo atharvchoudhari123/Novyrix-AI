@@ -8,7 +8,7 @@ DATA = (
     ROOT
     / "training"
     / "data"
-    / "lumen_train.jsonl"
+    / "novyrix_train.jsonl"
 )
 
 
