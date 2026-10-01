@@ -5,21 +5,42 @@
       "display_name": "LumaCore 3.2",
       "tier": "fast",
       "checkpoint_env": "LUMACORE_3_2_CHECKPOINT",
-      "capabilities": ["chat", "code", "files", "image", "video"]
+      "capabilities": [
+        "chat",
+        "code",
+        "files",
+        "image",
+        "video",
+        "agent_tools"
+      ]
     },
     {
       "id": "lumacore-4.0",
       "display_name": "LumaCore 4.0",
       "tier": "general",
       "checkpoint_env": "LUMACORE_4_0_CHECKPOINT",
-      "capabilities": ["chat", "code", "files", "image", "video"]
+      "capabilities": [
+        "chat",
+        "code",
+        "files",
+        "image",
+        "video",
+        "agent_tools"
+      ]
     },
     {
       "id": "lumacore-5.7",
       "display_name": "LumaCore 5.7",
       "tier": "advanced",
       "checkpoint_env": "LUMACORE_5_7_CHECKPOINT",
-      "capabilities": ["chat", "code", "files", "image", "video"]
+      "capabilities": [
+        "chat",
+        "code",
+        "files",
+        "image",
+        "video",
+        "agent_tools"
+      ]
     }
   ]
 }
