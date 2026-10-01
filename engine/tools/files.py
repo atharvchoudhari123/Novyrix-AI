@@ -9,7 +9,7 @@ def _resolve(path: str) -> Path:
     try:
         target.relative_to(ROOT.resolve())
     except ValueError as exc:
-        raise PermissionError("Path escapes the LumaCore project root.") from exc
+        raise PermissionError("Path escapes the Novyrix project root.") from exc
     return target
 
 def list_files(path: str = ".", recursive: bool = True):
