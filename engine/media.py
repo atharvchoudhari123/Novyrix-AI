@@ -48,8 +48,8 @@ class MediaRuntime:
             except ImportError as exc:
                 raise MediaGenerationError("Install requirements.txt to enable image generation.") from exc
             device = self.get_device()
-            checkpoint = os.getenv("LUMACORE_IMAGE_MODEL", "runwayml/stable-diffusion-v1-5").strip()
-            print(f"Loading LumaCore image model on {device}: {checkpoint}")
+            checkpoint = os.getenv("NOVYRIX_IMAGE_MODEL", "runwayml/stable-diffusion-v1-5").strip()
+            print(f"Loading Novyrix image model on {device}: {checkpoint}")
             pipe = AutoPipelineForText2Image.from_pretrained(
                 checkpoint,
                 torch_dtype=self._dtype(device),
@@ -74,8 +74,8 @@ class MediaRuntime:
             except ImportError as exc:
                 raise MediaGenerationError("Install requirements.txt to enable video generation.") from exc
             device = self.get_device()
-            checkpoint = os.getenv("LUMACORE_VIDEO_MODEL", "THUDM/CogVideoX-2b").strip()
-            print(f"Loading LumaCore video model on {device}: {checkpoint}")
+            checkpoint = os.getenv("NOVYRIX_VIDEO_MODEL", "THUDM/CogVideoX-2b").strip()
+            print(f"Loading Novyrix video model on {device}: {checkpoint}")
             pipe = CogVideoXPipeline.from_pretrained(
                 checkpoint,
                 torch_dtype=self._dtype(device),
