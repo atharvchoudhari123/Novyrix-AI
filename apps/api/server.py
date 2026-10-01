@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Header
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,65 @@ UPLOADS = ROOT / "storage" / "uploads"
 MEDIA = ROOT / "storage" / "media"
 UPLOADS.mkdir(parents=True, exist_ok=True)
 MEDIA.mkdir(parents=True, exist_ok=True)
+
+ACCOUNTS = ROOT / "storage" / "accounts"
+ACCOUNTS.mkdir(parents=True, exist_ok=True)
+DAILY_TOKENS = int(os.getenv("LUMACORE_DAILY_TOKENS", "100"))
+MESSAGE_COST = int(os.getenv("LUMACORE_MESSAGE_COST", "5"))
+
+def _safe_account_id(account_id: str) -> str:
+    value = "".join(ch for ch in str(account_id) if ch.isalnum() or ch in "._-")
+    return value[:120] or "default"
+
+def _account_state(account_id: str) -> dict:
+    from datetime import datetime, timezone
+    path = ACCOUNTS / f"{_safe_account_id(account_id)}.json"
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except Exception:
+        data = {}
+    if data.get("reset_day") != today:
+        data = {
+            "reset_day": today,
+            "daily_tokens": DAILY_TOKENS,
+            "credits": int(data.get("credits", 0)),
+            "membership": data.get("membership", "free"),
+        }
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return data
+
+def _save_account(account_id: str, data: dict):
+    path = ACCOUNTS / f"{_safe_account_id(account_id)}.json"
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+def _model_allowed(model_id: str, membership: str) -> bool:
+    return (
+        model_id == "lumacore-3.2"
+        or (model_id == "lumacore-4.0" and membership in {"core", "premium"})
+        or (model_id == "lumacore-5.7" and membership == "premium")
+    )
+
+def _reserve_message(account_id: str, model_id: str):
+    data = _account_state(account_id)
+    membership = data.get("membership", "free")
+    if not _model_allowed(model_id, membership):
+        raise HTTPException(status_code=403, detail="This model requires a paid membership.")
+    daily = int(data.get("daily_tokens", DAILY_TOKENS))
+    credits = int(data.get("credits", 0))
+    if daily + credits < MESSAGE_COST:
+        raise HTTPException(status_code=402, detail="No tokens remaining. Add credits or upgrade your membership.")
+    if daily >= MESSAGE_COST:
+        data["daily_tokens"] = daily - MESSAGE_COST
+        source = "daily"
+    else:
+        remainder = MESSAGE_COST - daily
+        data["daily_tokens"] = 0
+        data["credits"] = credits - remainder
+        source = "mixed"
+    _save_account(account_id, data)
+    return data, source
+
 
 app = FastAPI(title="LumaCore API", version="0.5.0")
 
@@ -280,13 +339,48 @@ def media_intent(text: str) -> str | None:
     return None
 
 
+
+@app.get("/v1/account")
+async def account(x_lumacore_account: str = Header(default="default")):
+    data = _account_state(x_lumacore_account)
+    return {
+        "account": x_lumacore_account,
+        "membership": data["membership"],
+        "daily_tokens": data["daily_tokens"],
+        "credits": data["credits"],
+        "daily_token_limit": DAILY_TOKENS,
+        "message_cost": MESSAGE_COST,
+    }
+
+@app.post("/v1/account/credits")
+async def add_credits(payload: dict, x_lumacore_account: str = Header(default="default")):
+    amount = int(payload.get("credits", 0))
+    if amount <= 0 or amount > 100000:
+        raise HTTPException(status_code=400, detail="credits must be between 1 and 100000.")
+    data = _account_state(x_lumacore_account)
+    data["credits"] += amount
+    _save_account(x_lumacore_account, data)
+    return {"credits": data["credits"], "membership": data["membership"]}
+
+@app.post("/v1/account/membership")
+async def set_membership(payload: dict, x_lumacore_account: str = Header(default="default")):
+    membership = str(payload.get("membership", "free")).lower()
+    if membership not in {"free", "core", "premium"}:
+        raise HTTPException(status_code=400, detail="membership must be free, core, or premium.")
+    data = _account_state(x_lumacore_account)
+    data["membership"] = membership
+    _save_account(x_lumacore_account, data)
+    return {"membership": membership, "daily_tokens": data["daily_tokens"], "credits": data["credits"]}
+
 @app.post("/v1/chat/completions")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, x_lumacore_account: str = Header(default="default")):
     request.model = normalize_model_id(request.model)
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages is required.")
     if get_model(request.model) is None:
         raise HTTPException(status_code=400, detail=f"Unknown model: {request.model}")
+
+    account, token_source = _reserve_message(x_lumacore_account, request.model)
 
     messages = [message.model_dump() for message in request.messages]
     files = [file.model_dump() for file in request.files]
@@ -362,7 +456,8 @@ async def chat(request: ChatRequest):
 
     if not request.stream:
         response = {"id": response_id, "object": "chat.completion", "model": request.model,
-                    "choices": [{"index": 0, "message": {"role": "assistant", "content": text or ""}, "finish_reason": "stop"}]}
+                    "choices": [{"index": 0, "message": {"role": "assistant", "content": text or ""}, "finish_reason": "stop"}],
+                    "usage": {"message_tokens": MESSAGE_COST, "token_source": token_source, "daily_tokens_remaining": account["daily_tokens"], "credits_remaining": account["credits"]}}
         if media:
             response["media"] = media
         return response
