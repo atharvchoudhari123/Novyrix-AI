@@ -1342,7 +1342,7 @@ async function sendMessage(){
         let buffer="";
 
         const handleSSEEvent = (event) => {
-            const lines = event.replace(/\\r/g, "").split("\\n");
+            const lines = event.replace(/\r/g, "").split("\n");
             for(const line of lines){
                 if(!line.startsWith("data:")) continue;
                 const payload = line.slice(5).trimStart();
@@ -1362,13 +1362,13 @@ async function sendMessage(){
         while(true){
             const {value,done} = await reader.read();
             if(done) break;
-            buffer += decoder.decode(value,{stream:true}).replace(/\\r/g, "");
-            const events = buffer.split("\\n\\n");
+            buffer += decoder.decode(value,{stream:true}).replace(/\r/g, "");
+            const events = buffer.split("\n\n");
             buffer = events.pop() || "";
             for(const event of events) handleSSEEvent(event);
         }
 
-        buffer += decoder.decode().replace(/\\r/g, "");
+        buffer += decoder.decode().replace(/\r/g, "");
         if(buffer.trim()) handleSSEEvent(buffer);
 
         if(!answer) throw new Error("Novyrix returned no answer.");
@@ -1545,7 +1545,7 @@ document
             let buffer="";
 
             const handleSSEEvent = (event) => {
-                const lines = event.replace(/\\r/g, "").split("\\n");
+                const lines = event.replace(/\r/g, "").split("\n");
                 for(const line of lines){
                     if(!line.startsWith("data:")) continue;
                     const payload = line.slice(5).trimStart();
@@ -1565,13 +1565,13 @@ document
             while(true){
                 const {value,done} = await reader.read();
                 if(done) break;
-                buffer += decoder.decode(value,{stream:true}).replace(/\\r/g, "");
-                const events = buffer.split("\\n\\n");
+                buffer += decoder.decode(value,{stream:true}).replace(/\r/g, "");
+                const events = buffer.split("\n\n");
                 buffer = events.pop() || "";
                 for(const event of events) handleSSEEvent(event);
             }
 
-            buffer += decoder.decode().replace(/\\r/g, "");
+            buffer += decoder.decode().replace(/\r/g, "");
             if(buffer.trim()) handleSSEEvent(buffer);
             if(!lastCode) throw new Error("No code returned."); state.textContent="Ready";
         }catch(error){output.textContent=error.message;state.textContent="Failed";}
