@@ -58,6 +58,12 @@ class AdvancedPlanner:
         "percent", "convert", "how much is",
     )
 
+    _explain_words = (
+        "what is", "what are", "explain", "teach me", "teach me the",
+        "how does", "how do", "why does", "why do", "meaning of",
+        "difference between", "compare",
+    )
+
     _creation_words = (
         "create", "make", "build", "design", "generate", "write", "develop",
         "implement", "set up", "setup",
@@ -71,6 +77,11 @@ class AdvancedPlanner:
 
         if self._contains(value, self._debug_words):
             return "debug"
+
+        if self._contains(value, self._explain_words) and not self._contains(
+            value, ("write", "build", "create", "make", "implement", "code me")
+        ):
+            return "explain"
 
         if self._contains(value, self._current_words) and (
             self._contains(value, self._research_words)
@@ -110,6 +121,14 @@ class AdvancedPlanner:
         plans = {
             "general": (
                 ["Understand the request", "Answer directly and clearly"],
+                [],
+            ),
+            "explain": (
+                [
+                    "Identify the concept the user is asking about",
+                    "Explain it at the user's apparent level",
+                    "Use examples when they improve understanding",
+                ],
                 [],
             ),
             "code": (
