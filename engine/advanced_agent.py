@@ -36,6 +36,11 @@ class AdvancedPlanner:
         "unreal", "write me", "build me", "make me", "create me",
     )
 
+    _game_words = (
+        "game", "flappy bird", "pong", "snake", "tetris", "platformer",
+        "runner", "space shooter", "breakout", "asteroids",
+    )
+
     _debug_words = (
         "error", "exception", "traceback", "bug", "broken", "crash", "fails",
         "failed", "not working", "doesn't work", "does not work", "fix this",
@@ -204,12 +209,30 @@ class AdvancedPlanner:
         lines.extend(f"{index}. {step}" for index, step in enumerate(plan.steps, 1))
         if plan.tool_hints:
             lines.append("Relevant tools: " + ", ".join(plan.tool_hints))
+
+        if self._contains(plan.goal.lower(), self._game_words):
+            lines.extend(
+                [
+                    "",
+                    "Game implementation contract:",
+                    "- Build a real playable game, not a visual stub.",
+                    "- Use deterministic game state and a real update/render loop.",
+                    "- Define every referenced variable, element, function, and event handler.",
+                    "- Implement the requested mechanics before adding decorative effects.",
+                    "- Make controls obvious and include restart/game-over behavior.",
+                ]
+            )
+
         lines.extend(
             [
                 "",
                 "Execution rules:",
                 "- Follow the user's actual goal, not just keywords in the prompt.",
                 "- If the request asks for code, write the requested code instead of merely discussing coding.",
+                "- For a game request, produce a complete playable implementation, not a mockup or fragment. Prefer a self-contained HTML file when the user does not specify a framework.",
+                "- A playable browser game must include the game loop/state, controls, rendering, collision or win/loss rules, scoring where appropriate, restart behavior, and all DOM/canvas elements it references.",
+                "- Never reference undefined elements such as .bird or .runner unless you actually create those elements. Do not use random coordinates as a substitute for game physics.",
+                "- Do not output placeholder code, pseudocode, or code that only increments a score. Make the result runnable as provided.",
                 "- If the request asks for a multi-file project, provide the project structure and complete file contents when practical.",
                 "- If files or tools are available, use them as evidence and perform requested operations rather than claiming they happened.",
                 "- If a tool is unavailable, continue with the best useful answer and clearly state the limitation.",
