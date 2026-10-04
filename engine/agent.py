@@ -39,6 +39,56 @@ class ToolDecision:
 class NovyrixAgent:
     """Lightweight deterministic tool router used by the Advanced beta."""
 
+    _web_explicit_words = (
+        "search the web", "search online", "look this up", "look it up",
+        "research this", "research online", "find online", "find on the web",
+        "check online", "check the docs", "check documentation",
+        "official docs", "documentation", "sources", "latest version",
+        "current version", "recent version", "what changed", "release notes",
+    )
+
+    _technical_web_words = (
+        "api", "sdk", "package", "library", "framework", "dependency",
+        "npm", "pypi", "pip", "maven", "gradle", "cargo", "nuget",
+        "swift package", "pod", "homebrew", "docker image",
+    )
+
+    _technical_action_words = (
+        "install", "configure", "setup", "set up", "integrate", "implement",
+        "use", "upgrade", "migrate", "build", "fix", "debug", "deploy",
+    )
+
+    @classmethod
+    def _needs_web_research(cls, text: str, intent: str) -> tuple[bool, str]:
+        lower = (text or "").lower()
+
+        if any(phrase in lower for phrase in cls._web_explicit_words):
+            return True, "The user explicitly requested web research or current documentation."
+
+        # Technical implementation questions sometimes depend on changing APIs,
+        # package versions, or framework behavior. Search only when the prompt
+        # gives us a concrete technical signal; do not browse for ordinary coding.
+        technical_signal = any(word in lower for word in cls._technical_web_words)
+        technical_action = any(word in lower for word in cls._technical_action_words)
+        version_signal = bool(re.search(r"\\b(?:v?\\d+(?:\\.\\d+){0,2}|20\\d{2})\\b", lower))
+
+        if intent in {"code", "build", "debug", "research"} and technical_signal and (
+            technical_action or version_signal
+        ):
+            return True, "The task may depend on external technical documentation or version-specific behavior."
+
+        # Named platforms/frameworks with explicit integration questions are
+        # another good reason to consult current docs.
+        integration_terms = (
+            "github api", "stripe", "discord api", "roblox api", "openai api",
+            "anthropic api", "google api", "aws", "azure", "firebase",
+            "supabase", "vercel", "cloudflare",
+        )
+        if intent in {"code", "build", "debug"} and any(term in lower for term in integration_terms):
+            return True, "The task references an external platform whose API or behavior may have changed."
+
+        return False, ""
+
     def choose_tools(self, text: str) -> list[ToolDecision]:
         value = (text or "").strip()
         lower = value.lower()
@@ -81,15 +131,16 @@ class NovyrixAgent:
                 )
             )
 
-        # Web research is useful when the request explicitly needs current information.
-        if plan.intent == "research" and (
-            any(word in lower for word in ("latest", "today", "current", "recent", "search", "research"))
-        ):
+        # Browse selectively. Ordinary coding does not trigger web access;
+        # explicit research, current/version-specific questions, and external
+        # technical APIs/packages do.
+        needs_web, web_reason = self._needs_web_research(value, plan.intent)
+        if needs_web:
             decisions.append(
                 ToolDecision(
                     "web_search",
                     {"query": value},
-                    "The request needs external/current context.",
+                    web_reason,
                 )
             )
 
