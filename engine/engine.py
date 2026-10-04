@@ -1,4 +1,4 @@
-from .context import build_system_prompt, build_tool_system_prompt, attach_files
+from .context import build_system_prompt, build_tool_system_prompt, attach_files, detect_mode
 from .agent import registry
 from .orchestrator import AgentOrchestrator
 from .memory import memory
@@ -35,15 +35,19 @@ class NovyrixEngine:
                 user_message = message.get("content", "")
                 break
 
-        tool_result = self.orchestrator.maybe_tool(canonical_model_id, user_message)
-        if tool_result:
-            user_message = self.orchestrator.enrich_prompt(user_message, tool_result)
+        if mode in (None, "", "chat", "auto"):
+            mode = detect_mode(user_message, "auto")
+
+        tool_results = self.orchestrator.maybe_tools(canonical_model_id, user_message)
+        if tool_results:
+            user_message = self.orchestrator.enrich_prompt(user_message, tool_results)
             normalized[-1]["content"] = user_message
 
         system = build_tool_system_prompt(
             model["display_name"],
             mode=mode,
             tools=registry.descriptions(),
+            user_message=user_message,
         )
 
         normalized = attach_files(normalized, files or [])
@@ -81,15 +85,19 @@ class NovyrixEngine:
                 user_message = message.get("content", "")
                 break
 
-        tool_result = self.orchestrator.maybe_tool(canonical_model_id, user_message)
-        if tool_result:
-            user_message = self.orchestrator.enrich_prompt(user_message, tool_result)
+        if mode in (None, "", "chat", "auto"):
+            mode = detect_mode(user_message, "auto")
+
+        tool_results = self.orchestrator.maybe_tools(canonical_model_id, user_message)
+        if tool_results:
+            user_message = self.orchestrator.enrich_prompt(user_message, tool_results)
             normalized[-1]["content"] = user_message
 
         system = build_tool_system_prompt(
             model["display_name"],
             mode=mode,
             tools=registry.descriptions(),
+            user_message=user_message,
         )
         normalized = attach_files(normalized, files or [])
         final_messages = [{"role": "system", "content": system}, *normalized]
