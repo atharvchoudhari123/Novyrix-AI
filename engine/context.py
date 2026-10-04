@@ -116,8 +116,8 @@ def detect_mode(user_message: str, explicit_mode: Optional[str] = None) -> str:
             "coding": "code",
             "programming": "code",
             "developer": "code",
-            "debugging": "debug",
             "development": "code",
+            "debugging": "debug",
             "file": "files",
             "security_review": "security",
             "backend": "api",
@@ -126,39 +126,18 @@ def detect_mode(user_message: str, explicit_mode: Optional[str] = None) -> str:
         mode = explicit_mode.lower().strip()
         return aliases.get(mode, mode)
 
-    text = (user_message or "").lower()
-
-    if any(x in text for x in (
-        "security review", "security audit", "vulnerability", "secure this",
-    )):
-        return "security"
-
-    if any(x in text for x in (
-        "error", "traceback", "exception", "failed", "failure",
-        "crash", "doesn't work", "does not work", "not working", "bug",
-    )):
-        return "debug"
-
-    if any(x in text for x in (
-        "write code", "write a script", "write a function", "code me",
-        "coding", "javascript", "typescript", "python", "swift", "html",
-        "css", "bash", "shell script", "api endpoint", "class ", "function ",
-    )):
-        return "code"
-
-    if any(x in text for x in (
-        "generate an image", "generate image", "create an image",
-        "make an image", "generate a video", "create a video",
-        "make a video",
-    )):
-        return "media"
-
-    if any(x in text for x in (
-        "rewrite this", "rewrite", "proofread", "grammar",
-    )):
-        return "writing"
-
-    return "chat"
+    advanced_intent = advanced_planner.classify(user_message or "")
+    mapping = {
+        "general": "chat",
+        "explain": "chat",
+        "code": "code",
+        "build": "code",
+        "debug": "debug",
+        "research": "chat",
+        "files": "files",
+        "math": "chat",
+    }
+    return mapping.get(advanced_intent, "chat")
 
 
 def build_tool_system_prompt(model_name, mode="chat", tools=None, user_message=None):
