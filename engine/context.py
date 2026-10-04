@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Optional
 
+from .advanced_agent import advanced_planner
+
 
 CORE_INSTRUCTIONS = """
 You are {model_name}, a local AI assistant created by Novyrix.
@@ -159,8 +161,10 @@ def detect_mode(user_message: str, explicit_mode: Optional[str] = None) -> str:
     return "chat"
 
 
-def build_tool_system_prompt(model_name, mode="chat", tools=None):
-    base = build_system_prompt(model_name, mode)
+def build_tool_system_prompt(model_name, mode="chat", tools=None, user_message=None):
+    base = build_system_prompt(model_name, mode, user_message=user_message)
+    if user_message:
+        base += "\n\n" + advanced_planner.prompt_block(user_message)
     if not tools:
         return base
     tool_lines = "\n".join(f"- {item['name']}: {item['description']}" for item in tools)
