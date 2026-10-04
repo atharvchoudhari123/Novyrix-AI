@@ -68,7 +68,7 @@ class NovyrixAgent:
 
         # Search a project when the user explicitly asks to find text.
         search_match = re.search(
-            r"(?:search|find)(?: for)?(?: the text)?\\s+(.+?)(?:\\s+in\\s+(?:the\\s+)?(?:project|workspace|files))?$",
+            r"(?:search|find)(?: for)?(?: the text)?\s+(.+?)(?:\s+in\s+(?:the\s+)?(?:project|workspace|files))?$",
             value,
             re.IGNORECASE,
         )
