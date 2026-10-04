@@ -191,3 +191,33 @@ Membership access is enforced by the API:
 
 The account endpoints are `/v1/account`, `/v1/account/credits`, and `/v1/account/membership`. The credits and membership write endpoints are placeholders for future Stripe Checkout/webhook integration; they are not payment verification.
 # Novyrix-AI
+
+
+## Novyrix Advanced beta
+
+The `novrix-advanced-beta` branch adds an experimental execution layer focused on
+making Novyrix feel like its own capable assistant rather than copying another
+assistant's personality.
+
+Advanced beta adds:
+
+- broad request classification instead of a small coding keyword list
+- explicit task planning before generation
+- multi-tool routing when a task benefits from tools
+- coding/build/debug/research/file/math workflows
+- tool evidence injection so the model can reason from actual results
+- the same Novyrix membership and token enforcement
+- a clear distinction between what Novyrix completed and what it could not execute
+
+The planner is deliberately deterministic and transparent. It does not pretend
+that a small local model has frontier-level reasoning. The model remains the
+language-generation layer, while the Advanced planner and tool system provide
+structure and execution support.
+
+For local testing, enable:
+
+```env
+NOVYRIX_ADVANCED_BETA=true
+```
+
+The experimental branch does not change `main`.
