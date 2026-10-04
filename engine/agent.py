@@ -70,7 +70,7 @@ class NovyrixAgent:
         # gives us a concrete technical signal; do not browse for ordinary coding.
         technical_signal = any(word in lower for word in cls._technical_web_words)
         technical_action = any(word in lower for word in cls._technical_action_words)
-        version_signal = bool(re.search(r"\\b(?:v?\\d+(?:\\.\\d+){0,2}|20\\d{2})\\b", lower))
+        version_signal = bool(re.search(r"\b(?:v?\d+(?:\.\d+){0,2}|20\d{2})\b", lower))
 
         if intent in {"code", "build", "debug", "research"} and technical_signal and (
             technical_action or version_signal
