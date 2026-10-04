@@ -14,7 +14,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, Header
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from engine.context import attach_files, build_system_prompt
+from engine.context import attach_files, build_system_prompt, detect_mode
 from engine.model_registry import get_model, get_models, normalize_model_id
 from plugins.registry import PluginError, get_plugin, list_plugins, run_plugin
 
@@ -431,6 +431,8 @@ async def chat(request: ChatRequest, x_novyrix_account: str = Header(default="de
         else:
             try:
                 from engine.engine import engine
+                if request.mode in {"", "chat", "auto"}:
+                    request.mode = detect_mode(request.messages[-1].content, "auto")
                 if request.stream:
                     stream_source = engine.stream(
                         model_id=request.model,
