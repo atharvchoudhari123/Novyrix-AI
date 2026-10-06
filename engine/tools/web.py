@@ -36,41 +36,26 @@ class _DuckDuckGoParser(HTMLParser):
             self._buffer = []
 
     def handle_endtag(self, tag):
-        if self._current is None or self._capture is None:
+        if self._current is None:
             return
 
-        if tag in {"a", "div", "span"}:
+        if self._capture and tag in {"a", "div", "span"}:
             text = " ".join("".join(self._buffer).split())
             if text:
                 self._current[self._capture] = text
+            self._capture = None
+            self._buffer = []
+
+        # End a result once both title and snippet have been captured.
+        if tag == "div" and self._current.get("title") and self._current.get("snippet"):
+            self.results.append(self._current)
+            self._current = None
             self._capture = None
             self._buffer = []
 
     def handle_data(self, data):
         if self._current is not None and self._capture:
             self._buffer.append(data)
-
-    def handle_startendtag(self, tag, attrs):
-        self.handle_starttag(tag, attrs)
-        self.handle_endtag(tag)
-
-    def handle_endtag(self, tag):
-        if self._current is not None and tag == "div":
-            # DuckDuckGo closes each result in a result__body/result container.
-            if self._current.get("title"):
-                self.results.append(self._current)
-                self._current = None
-                self._capture = None
-                self._buffer = []
-                return
-        if self._current is None or self._capture is None:
-            return
-        if tag in {"a", "span"}:
-            text = " ".join("".join(self._buffer).split())
-            if text:
-                self._current[self._capture] = text
-            self._capture = None
-            self._buffer = []
 
 
 def _clean_url(url: str) -> str:
@@ -96,9 +81,8 @@ def search_web(query: str, max_results: int = 6, max_chars: int = 12000):
     if not query:
         raise ValueError("Search query is empty.")
 
-    # DuckDuckGo's HTML endpoint is intentionally used instead of returning
-    # an entire search-engine page. Small local models need concise evidence,
-    # not thousands of lines of HTML.
+    # Return concise search evidence instead of an entire search-engine page.
+    # Small local models need readable results, not thousands of lines of HTML.
     url = "https://html.duckduckgo.com/html/?" + urllib.parse.urlencode({"q": query})
     request = urllib.request.Request(
         url,
@@ -116,8 +100,8 @@ def search_web(query: str, max_results: int = 6, max_chars: int = 12000):
             "query": query,
             "source": "duckduckgo",
             "results": [],
-            "error": f"Web search failed: {exc}",
             "verified": False,
+            "error": f"Web search failed: {exc}",
         }
 
     parser = _DuckDuckGoParser()
@@ -133,23 +117,17 @@ def search_web(query: str, max_results: int = 6, max_chars: int = 12000):
         if not title or key in seen:
             continue
         seen.add(key)
-        results.append({
-            "title": title,
-            "url": result_url,
-            "snippet": snippet,
-        })
+        results.append({"title": title, "url": result_url, "snippet": snippet})
         if len(results) >= max_results:
             break
 
-    # If the search provider changes its HTML, return a bounded fallback rather
-    # than pretending that the raw page is a useful factual result.
     if not results:
         return {
             "query": query,
             "source": "duckduckgo",
             "results": [],
-            "raw_fallback": _fallback_text(text, max_chars),
             "verified": False,
+            "raw_fallback": _fallback_text(text, max_chars),
             "warning": "No structured search results were extracted; do not treat the fallback as verified facts.",
         }
 
@@ -160,8 +138,8 @@ def search_web(query: str, max_results: int = 6, max_chars: int = 12000):
         "verified": True,
         "instruction": (
             "Use these search results as evidence. Only state facts supported by "
-            "the snippets/URLs. If the results do not establish an answer, say "
-            "that the search did not verify it instead of guessing."
+            "the snippets or linked pages. If the results do not establish an "
+            "answer, say that the search did not verify it instead of guessing."
         ),
     }
 
