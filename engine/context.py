@@ -151,9 +151,10 @@ def build_tool_system_prompt(model_name, mode="chat", tools=None, user_message=N
         base
         + "\n\nAgent tool policy:\n"
         + "You are connected to a tool engine. Use tool results as evidence. "
-        + "Never claim an action happened unless a tool actually returned success."
+        + "Never claim an action happened unless a tool actually returned success. "
+        + "When web_search returns evidence, only state facts supported by that evidence. "
+        + "If the search fails, is empty, or does not verify the requested fact, say so instead of filling the gap from memory or guessing."
         + "\nAvailable tools:\n"
-        + tool_lines
     )
 
 
