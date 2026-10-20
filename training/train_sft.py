@@ -1,101 +1,21 @@
+"""Legacy command retained as a pointer to the Novyrix scratch trainer."""
+from __future__ import annotations
+
 import os
+import sys
 from pathlib import Path
 
-from datasets import load_dataset
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    TrainingArguments
-)
-from trl import SFTTrainer
-
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-BASE_MODEL = os.getenv(
-    "LUMEN_BASE_MODEL",
-    "Qwen/Qwen2.5-0.5B-Instruct"
-)
-
-DATASET = (
-    ROOT
-    / "training"
-    / "data"
-    / "novyrix_train.jsonl"
-)
-
-OUTPUT = (
-    ROOT
-    / "training"
-    / "output"
-    / "novyrix-3.2"
-)
+from train_tier import main as train_tier_main
 
 
-def main():
-
-    if not DATASET.exists():
-        raise FileNotFoundError(
-            f"Training dataset not found: {DATASET}"
-        )
-
-    print()
-    print("================================")
-    print(" LUMEN TRAINING")
-    print("================================")
-    print()
-    print(f"Base model: {BASE_MODEL}")
-    print(f"Dataset:    {DATASET}")
-    print(f"Output:     {OUTPUT}")
-    print()
-
-    dataset = load_dataset(
-        "json",
-        data_files=str(DATASET),
-        split="train"
-    )
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        BASE_MODEL,
-        trust_remote_code=True
-    )
-
-    model = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL,
-        trust_remote_code=True
-    )
-
-    training_args = TrainingArguments(
-        output_dir=str(OUTPUT),
-        num_train_epochs=1,
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=4,
-        learning_rate=2e-5,
-        logging_steps=1,
-        save_strategy="epoch",
-        report_to="none"
-    )
-
-    trainer = SFTTrainer(
-        model=model,
-        processing_class=tokenizer,
-        train_dataset=dataset,
-        args=training_args
-    )
-
-    trainer.train()
-
-    trainer.save_model(
-        str(OUTPUT)
-    )
-
-    tokenizer.save_pretrained(
-        str(OUTPUT)
-    )
-
-    print()
-    print("Training complete.")
-    print(f"Model saved to: {OUTPUT}")
+def main() -> None:
+    os.environ.setdefault("NOVYRIX_TIER", "3.2")
+    os.environ.setdefault("NOVYRIX_DATASET", str(ROOT / "training/data/novyrix_3_2.jsonl"))
+    os.environ.setdefault("NOVYRIX_OUTPUT", str(ROOT / "training/output/novyrix-3.2-scratch"))
+    train_tier_main()
 
 
 if __name__ == "__main__":
