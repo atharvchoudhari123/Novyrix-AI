@@ -1,40 +1,34 @@
-# Novyrix training paths
+# Novyrix scratch training
 
-Novyrix currently has two distinct training paths. Do not confuse their provenance.
+Novyrix's text models use a custom decoder-only Transformer initialized from random weights. The training and inference paths do not load any pretrained language-model checkpoint.
 
-## Existing fine-tuning path
+## Train the three Novyrix tiers
 
-The existing tier scripts use a pretrained base checkpoint and fine-tune it on Novyrix examples. The model weights are therefore derived from that base model; this is not from-scratch pretraining.
-
-Activate the environment and run the existing project command:
+From the project root, activate the virtual environment and run:
 
 ```bash
 ./train_all.sh
 ```
 
-## Experimental from-scratch path
+This generates small demonstration datasets and trains separate architectures:
 
-`training/scratch_lm.py` is an initial, separate decoder-only Transformer trainer. It initializes model weights randomly and uses a documented UTF-8 byte codec; it does not load Transformers or any pretrained checkpoint.
+- 3.2: width 256, 4 layers, 4 attention heads
+- 4.0: width 384, 6 layers, 6 attention heads
+- 5.7: width 512, 8 layers, 8 attention heads
 
-You must supply text files you have permission to use. The current trainer is an experimental foundation and is not yet a capable assistant.
+The default is 1,000 training steps per tier. Change it with `NOVYRIX_TRAIN_STEPS`; `NOVYRIX_EVAL_EVERY` and `NOVYRIX_BATCH_SIZE` can also be set before starting. Training time depends on hardware and these settings. The generated sample data is only suitable for pipeline experiments, not for producing a reliable assistant. Use only larger data you have the right to train on before expecting useful capabilities.
 
-```bash
-python3 training/scratch_lm.py \
-  --corpus path/to/approved-corpus.txt \
-  --output-dir training/output/novyrix-scratch \
-  --steps 10000
-```
+The model uses a reversible UTF-8 byte tokenizer and saves a checkpoint, model configuration, tokenizer description, and training manifest in each `training/output/novyrix-*-scratch` folder. The API runtime loads only these custom scratch checkpoints and will report a clear missing-checkpoint error until training has produced them.
 
-By default it selects CUDA, then Apple MPS, then CPU when available. Training from scratch can take substantial time. Small corpora and small models are useful for pipeline smoke checks only. The script requires enough encoded tokens for both training and validation splits; it does not download a corpus.
-
-The output directory contains a model checkpoint, model configuration, tokenizer description, and training manifest. To generate a continuation from a saved checkpoint:
+Generate a continuation manually:
 
 ```bash
 python3 training/generate_scratch.py \
-  --checkpoint training/output/novyrix-scratch/checkpoint.pt \
-  --prompt "Once upon a time"
+  --checkpoint training/output/novyrix-3.2-scratch/checkpoint.pt \
+  --prompt "Hello"
 ```
 
-The current model has not yet been smoke-trained, integrated into the chat runtime, or evaluated as an assistant. Do not point the production chat runtime at an unvalidated checkpoint.
+## Limitations
 
-Before scaling up, add corpus license/provenance review, deduplication, stable train/validation splits, checkpoint resume, and robust evaluation. See [the model design and stage gates](../docs/own-model-design.md).
+A small randomly initialized model trained on a few hundred examples will produce poor, unreliable language. The architecture is Novyrix's own; capability still requires substantial, appropriately licensed pretraining data, compute, instruction tuning, and evaluation. The tier names do not imply benchmark performance.
+
