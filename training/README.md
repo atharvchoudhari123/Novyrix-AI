@@ -27,6 +27,14 @@ python3 training/scratch_lm.py \
 
 By default it selects CUDA, then Apple MPS, then CPU when available. Training from scratch can take substantial time. Small corpora and small models are useful for pipeline smoke checks only. The script requires enough encoded tokens for both training and validation splits; it does not download a corpus.
 
-The output directory contains a model checkpoint, model configuration, tokenizer description, and training manifest. The current model has not yet been smoke-trained, integrated into the chat runtime, or evaluated as an assistant. Do not point the production chat runtime at an unvalidated checkpoint.
+The output directory contains a model checkpoint, model configuration, tokenizer description, and training manifest. To generate a continuation from a saved checkpoint:
 
-Before scaling up, add corpus license/provenance review, deduplication, stable train/validation splits, checkpoint resume, and robust evaluation. See [the model design and stage gates](own-model-design.md).
+```bash
+python3 training/generate_scratch.py \
+  --checkpoint training/output/novyrix-scratch/checkpoint.pt \
+  --prompt "Once upon a time"
+```
+
+The current model has not yet been smoke-trained, integrated into the chat runtime, or evaluated as an assistant. Do not point the production chat runtime at an unvalidated checkpoint.
+
+Before scaling up, add corpus license/provenance review, deduplication, stable train/validation splits, checkpoint resume, and robust evaluation. See [the model design and stage gates](../docs/own-model-design.md).
