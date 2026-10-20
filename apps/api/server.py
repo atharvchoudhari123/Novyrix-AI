@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import hmac
 import os
+import secrets
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -10,11 +13,11 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile, Header
+from fastapi import Cookie, FastAPI, File, HTTPException, UploadFile, Header, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from engine.context import attach_files, build_system_prompt, detect_mode
+from engine.context import detect_mode
 from engine.model_registry import get_model, get_models, normalize_model_id
 from plugins.registry import PluginError, get_plugin, list_plugins, run_plugin
 
@@ -29,6 +32,12 @@ ACCOUNTS = ROOT / "storage" / "accounts"
 ACCOUNTS.mkdir(parents=True, exist_ok=True)
 DAILY_TOKENS = int(os.getenv("NOVYRIX_DAILY_TOKENS", "100"))
 MESSAGE_COST = int(os.getenv("NOVYRIX_MESSAGE_COST", "5"))
+DEV_MODE_PASSWORD = os.getenv("NOVYRIX_DEV_MODE_PASSWORD", "")
+DEV_SESSION_TTL_SECONDS = 12 * 60 * 60
+DEV_LOGIN_WINDOW_SECONDS = 5 * 60
+DEV_LOGIN_MAX_FAILURES = 8
+DEV_MODE_SESSIONS: dict[str, float] = {}
+DEV_LOGIN_FAILURES: dict[str, list[float]] = {}
 
 def _safe_account_id(account_id: str) -> str:
     value = "".join(ch for ch in str(account_id) if ch.isalnum() or ch in "._-")
@@ -63,11 +72,25 @@ def _model_allowed(model_id: str, membership: str) -> bool:
         or (model_id == "novyrix-5.7" and membership == "premium")
     )
 
-def _reserve_message(account_id: str, model_id: str):
+def _is_dev_session(token: str | None) -> bool:
+    if not token:
+        return False
+    expires_at = DEV_MODE_SESSIONS.get(token)
+    if expires_at is None:
+        return False
+    if expires_at <= time.monotonic():
+        DEV_MODE_SESSIONS.pop(token, None)
+        return False
+    return True
+
+
+def _reserve_message(account_id: str, model_id: str, dev_mode: bool = False):
     data = _account_state(account_id)
     membership = data.get("membership", "free")
-    if not _model_allowed(model_id, membership):
+    if not dev_mode and not _model_allowed(model_id, membership):
         raise HTTPException(status_code=403, detail="This model requires a paid membership.")
+    if dev_mode:
+        return data, "developer"
     daily = int(data.get("daily_tokens", DAILY_TOKENS))
     credits = int(data.get("credits", 0))
     if daily + credits < MESSAGE_COST:
@@ -120,15 +143,12 @@ class MediaRequest(BaseModel):
     fps: int = 8
 
 
+class DevModeUnlockRequest(BaseModel):
+    password: str
+
+
 def media_url(path: Path) -> str:
     return f"/v1/media/files/{path.name}"
-
-
-def uses_fable_5_1(model_id: str) -> bool:
-    return (
-        model_id == "novyrix-5.7"
-        and os.getenv("NOVYRIX_5_7_PROVIDER", "local").strip().lower() == "anthropic"
-    )
 
 
 @app.get("/health")
@@ -138,10 +158,7 @@ async def health():
         "service": "novyrix-api",
         "version": "0.5.0",
         "fast_mode": FAST_MODE,
-        "fable_5_1": {
-            "enabled": uses_fable_5_1("novyrix-5.7"),
-            "model": os.getenv("NOVYRIX_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
-        },
+        "text_model_provenance": "Novyrix scratch checkpoints only",
         "media": {"image": True, "video": True},
     }
 
@@ -340,8 +357,63 @@ def media_intent(text: str) -> str | None:
 
 
 
+@app.post("/v1/dev-mode/unlock")
+async def unlock_dev_mode(
+    payload: DevModeUnlockRequest,
+    request: Request,
+    response: Response,
+):
+    if not DEV_MODE_PASSWORD:
+        raise HTTPException(status_code=503, detail="Developer mode is not configured on this server.")
+
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    recent_failures = [
+        stamp for stamp in DEV_LOGIN_FAILURES.get(client_ip, [])
+        if now - stamp < DEV_LOGIN_WINDOW_SECONDS
+    ]
+    DEV_LOGIN_FAILURES[client_ip] = recent_failures
+    if len(recent_failures) >= DEV_LOGIN_MAX_FAILURES:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again later.")
+
+    if not hmac.compare_digest(payload.password, DEV_MODE_PASSWORD):
+        recent_failures.append(now)
+        DEV_LOGIN_FAILURES[client_ip] = recent_failures
+        raise HTTPException(status_code=403, detail="Incorrect developer password.")
+
+    DEV_LOGIN_FAILURES.pop(client_ip, None)
+    token = secrets.token_urlsafe(32)
+    DEV_MODE_SESSIONS[token] = now + DEV_SESSION_TTL_SECONDS
+    response.set_cookie(
+        key="novyrix_dev_session",
+        value=token,
+        max_age=DEV_SESSION_TTL_SECONDS,
+        httponly=True,
+        secure=request.url.scheme == "https",
+        samesite="strict",
+        path="/v1",
+    )
+    return {"enabled": True, "expires_in": DEV_SESSION_TTL_SECONDS}
+
+
+@app.post("/v1/dev-mode/lock")
+async def lock_dev_mode(
+    response: Response,
+    dev_session: str | None = Cookie(default=None, alias="novyrix_dev_session"),
+):
+    if dev_session:
+        DEV_MODE_SESSIONS.pop(dev_session, None)
+    response.delete_cookie(
+        key="novyrix_dev_session", path="/v1", httponly=True, samesite="strict"
+    )
+    return {"enabled": False}
+
+
 @app.get("/v1/account")
-async def account(x_novyrix_account: str = Header(default="default")):
+async def account(
+    x_novyrix_account: str = Header(default="default"),
+    dev_session: str | None = Cookie(default=None, alias="novyrix_dev_session"),
+):
     data = _account_state(x_novyrix_account)
     return {
         "account": x_novyrix_account,
@@ -350,6 +422,7 @@ async def account(x_novyrix_account: str = Header(default="default")):
         "credits": data["credits"],
         "daily_token_limit": DAILY_TOKENS,
         "message_cost": MESSAGE_COST,
+        "dev_mode": _is_dev_session(dev_session),
     }
 
 @app.post("/v1/account/credits")
@@ -373,14 +446,20 @@ async def set_membership(payload: dict, x_novyrix_account: str = Header(default=
     return {"membership": membership, "daily_tokens": data["daily_tokens"], "credits": data["credits"]}
 
 @app.post("/v1/chat/completions")
-async def chat(request: ChatRequest, x_novyrix_account: str = Header(default="default")):
+async def chat(
+    request: ChatRequest,
+    x_novyrix_account: str = Header(default="default"),
+    dev_session: str | None = Cookie(default=None, alias="novyrix_dev_session"),
+):
     request.model = normalize_model_id(request.model)
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages is required.")
     if get_model(request.model) is None:
         raise HTTPException(status_code=400, detail=f"Unknown model: {request.model}")
 
-    account, token_source = _reserve_message(x_novyrix_account, request.model)
+    account, token_source = _reserve_message(
+        x_novyrix_account, request.model, dev_mode=_is_dev_session(dev_session)
+    )
 
     messages = [message.model_dump() for message in request.messages]
     files = [file.model_dump() for file in request.files]
@@ -400,29 +479,6 @@ async def chat(request: ChatRequest, x_novyrix_account: str = Header(default="de
         except Exception as error:
             raise HTTPException(status_code=500, detail=str(error)) from error
         stream_source = None
-    elif uses_fable_5_1(request.model):
-        try:
-            from engine.anthropic_runtime import anthropic_runtime
-            normalized = attach_files(messages, files)
-            system = build_system_prompt("Novyrix 5.7", request.mode)
-            final_messages = [{"role": "system", "content": system}, *normalized]
-            if request.stream:
-                stream_source = anthropic_runtime.stream(
-                    model=os.getenv("NOVYRIX_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
-                    messages=final_messages,
-                    max_new_tokens=request.max_new_tokens,
-                )
-                text = None
-            else:
-                text = anthropic_runtime.generate(
-                    model=os.getenv("NOVYRIX_5_7_ANTHROPIC_MODEL", "claude-fable-5-1"),
-                    messages=final_messages,
-                    max_new_tokens=request.max_new_tokens,
-                )
-                stream_source = None
-            media = None
-        except Exception as error:
-            raise HTTPException(status_code=502, detail=str(error)) from error
     else:
         media = None
         if FAST_MODE:
