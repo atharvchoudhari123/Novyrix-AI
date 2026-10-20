@@ -7,7 +7,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 REGISTRY_FILE = ROOT / "models" / "registry.json"
 
-DEFAULT_CHECKPOINT = "Qwen/Qwen2.5-0.5B-Instruct"
+SCRATCH_CHECKPOINTS = {
+    "novyrix-3.2": ROOT / "training" / "output" / "novyrix-3.2-scratch",
+    "novyrix-4.0": ROOT / "training" / "output" / "novyrix-4.0-scratch",
+    "novyrix-5.7": ROOT / "training" / "output" / "novyrix-5.7-scratch",
+}
 
 
 def normalize_model_id(model_id):
@@ -66,9 +70,16 @@ def get_checkpoint(model_id):
         )
 
     env_name = model.get("checkpoint_env", "")
-    checkpoint = os.getenv(env_name, "").strip()
+    configured = os.getenv(env_name, "").strip() if env_name else ""
+    checkpoint = Path(configured).expanduser() if configured else SCRATCH_CHECKPOINTS[model["id"]]
+    if not checkpoint.is_absolute():
+        checkpoint = ROOT / checkpoint
+    checkpoint = checkpoint.resolve()
 
-    if checkpoint:
-        return checkpoint
-
-    return DEFAULT_CHECKPOINT
+    if not checkpoint.exists():
+        return str(checkpoint)
+    if not checkpoint.is_dir() and checkpoint.suffix != ".pt":
+        raise ValueError(
+            f"Novyrix only loads its own scratch checkpoints (.pt) or their output directories: {checkpoint}"
+        )
+    return str(checkpoint)
