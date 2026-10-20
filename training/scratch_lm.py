@@ -178,7 +178,28 @@ def choose_device(requested: str) -> torch.device:
 def load_corpus(paths: list[Path], tokenizer: ByteTokenizer) -> torch.Tensor:
     ids: list[int] = []
     for path in paths:
-        text = path.read_text(encoding="utf-8")
+        if path.suffix.lower() == ".jsonl":
+            documents = []
+            for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if not line.strip():
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as error:
+                    raise ValueError(f"Invalid JSONL at {path}:{line_number}: {error}") from error
+                text = record.get("text")
+                if not isinstance(text, str):
+                    messages = record.get("messages", [])
+                    text = "\n".join(
+                        str(message.get("content", ""))
+                        for message in messages
+                        if isinstance(message, dict)
+                    )
+                if text:
+                    documents.append(text)
+            text = "\n\n".join(documents)
+        else:
+            text = path.read_text(encoding="utf-8")
         ids.extend(tokenizer.encode(text))
     return torch.tensor(ids, dtype=torch.long)
 
@@ -295,3 +316,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
