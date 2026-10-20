@@ -1,242 +1,95 @@
+from __future__ import annotations
+
+from pathlib import Path
 import threading
 
 import torch
 
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    TextIteratorStreamer,
-)
+from training.scratch_lm import ByteTokenizer, ModelConfig, NovyrixScratchLM
 
 
 class ModelRuntime:
+    """Inference runtime for Novyrix-owned, scratch-trained checkpoints only."""
 
     def __init__(self):
         self.cache = {}
+        self.cache_lock = threading.Lock()
 
-
-    def get_device(self):
-
+    def get_device(self) -> torch.device:
         if torch.cuda.is_available():
-            return "cuda"
+            return torch.device("cuda")
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
 
-        if (
-            hasattr(torch.backends, "mps")
-            and torch.backends.mps.is_available()
-        ):
-            return "mps"
+    def load_model(self, checkpoint: str):
+        checkpoint_path = Path(checkpoint).expanduser().resolve()
+        if checkpoint_path.is_dir():
+            checkpoint_path = checkpoint_path / "checkpoint.pt"
+        cache_key = str(checkpoint_path)
+        with self.cache_lock:
+            if cache_key in self.cache:
+                return self.cache[cache_key]
 
-        return "cpu"
-
-
-    def load_model(self, checkpoint):
-
-        if checkpoint in self.cache:
-            return self.cache[checkpoint]
-
-        device = self.get_device()
-
-        print(
-            f"Loading Novyrix model on {device}: {checkpoint}"
-        )
-
-        tokenizer = AutoTokenizer.from_pretrained(
-            checkpoint,
-            trust_remote_code=True
-        )
-
-        model = AutoModelForCausalLM.from_pretrained(
-            checkpoint,
-            trust_remote_code=True,
-            torch_dtype=(
-                torch.float16
-                if device != "cpu"
-                else torch.float32
-            )
-        )
-
-        model.to(device)
-        model.eval()
-
-        self.cache[checkpoint] = (
-            tokenizer,
-            model,
-            device
-        )
-
-        return self.cache[checkpoint]
-
-
-    def make_prompt(
-        self,
-        tokenizer,
-        messages
-    ):
-
-        if hasattr(
-            tokenizer,
-            "apply_chat_template"
-        ):
-
-            try:
-                return tokenizer.apply_chat_template(
-                    messages,
-                    tokenize=False,
-                    add_generation_prompt=True
+            if not checkpoint_path.is_file():
+                raise FileNotFoundError(
+                    f"Novyrix scratch checkpoint not found: {checkpoint_path}. "
+                    "Train this tier with the Novyrix from-scratch pipeline first."
                 )
 
-            except Exception:
-                pass
+            device = self.get_device()
+            print(f"Loading Novyrix scratch model on {device}: {checkpoint_path}")
+            try:
+                payload = torch.load(
+                    checkpoint_path, map_location=device, weights_only=True
+                )
+                if payload.get("provenance") != "random initialization; no pretrained weights":
+                    raise ValueError("Checkpoint provenance is not marked as scratch-trained.")
+                config = ModelConfig(**payload["model_config"])
+                model = NovyrixScratchLM(config).to(device)
+                model.load_state_dict(payload["model_state_dict"], strict=True)
+                model.eval()
+            except Exception as error:
+                raise RuntimeError(
+                    f"Could not load Novyrix scratch checkpoint {checkpoint_path}: {error}"
+                ) from error
 
+            loaded = (ByteTokenizer(), model, device)
+            self.cache[cache_key] = loaded
+            return loaded
 
+    @staticmethod
+    def make_prompt(messages) -> str:
         parts = []
-
         for message in messages:
-
-            role = message.get(
-                "role",
-                "user"
-            )
-
-            content = message.get(
-                "content",
-                ""
-            )
-
-            parts.append(
-                f"{role.upper()}: {content}"
-            )
-
-        parts.append(
-            "ASSISTANT:"
-        )
-
+            role = str(message.get("role", "user")).upper()
+            content = message.get("content", "")
+            parts.append(f"{role}: {content}")
+        parts.append("ASSISTANT:")
         return "\n\n".join(parts)
 
-
-    def stream(
-        self,
-        checkpoint,
-        messages,
-        max_new_tokens=512,
-        temperature=0.7,
-    ):
+    def generate(self, checkpoint, messages, max_new_tokens=512, temperature=0.7):
         tokenizer, model, device = self.load_model(checkpoint)
-        prompt = self.make_prompt(tokenizer, messages)
-        inputs = tokenizer(prompt, return_tensors="pt")
-        inputs = {key: value.to(device) for key, value in inputs.items()}
-
-        generation_kwargs = {
-            "max_new_tokens": max_new_tokens,
-            "pad_token_id": tokenizer.pad_token_id or tokenizer.eos_token_id,
-            "eos_token_id": tokenizer.eos_token_id,
-            "repetition_penalty": 1.05,
-            "top_p": 0.8,
-            "top_k": 20,
-        }
-        if temperature > 0:
-            generation_kwargs.update({"temperature": temperature, "do_sample": True})
-        else:
-            generation_kwargs.update({"do_sample": False})
-
-        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-        generation_kwargs["streamer"] = streamer
-
-        def run_generation():
-            with torch.no_grad():
-                model.generate(**inputs, **generation_kwargs)
-
-        thread = threading.Thread(target=run_generation, daemon=True)
-        thread.start()
-        for chunk in streamer:
-            if chunk:
-                yield chunk
-
-    def generate(
-        self,
-        checkpoint,
-        messages,
-        max_new_tokens=512,
-        temperature=0.7
-    ):
-
-        tokenizer, model, device = (
-            self.load_model(
-                checkpoint
-            )
+        prompt = self.make_prompt(messages)
+        prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
+        input_ids = torch.tensor(
+            [[model.config.bos_id, *prompt_ids]], dtype=torch.long, device=device
         )
-
-
-        prompt = self.make_prompt(
-            tokenizer,
-            messages
+        generated = model.generate(
+            input_ids,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
         )
+        answer_ids = generated[0, input_ids.shape[1]:].tolist()
+        return tokenizer.decode(answer_ids).strip()
 
-
-        inputs = tokenizer(
-            prompt,
-            return_tensors="pt"
+    def stream(self, checkpoint, messages, max_new_tokens=512, temperature=0.7):
+        """Yield response text in chunks; generation currently completes before yielding."""
+        text = self.generate(
+            checkpoint, messages, max_new_tokens=max_new_tokens, temperature=temperature
         )
-
-
-        inputs = {
-            key: value.to(device)
-            for key, value in inputs.items()
-        }
-
-
-        generation_kwargs = {
-            "max_new_tokens": max_new_tokens,
-            "pad_token_id": tokenizer.pad_token_id or tokenizer.eos_token_id,
-            "eos_token_id": tokenizer.eos_token_id,
-            "repetition_penalty": 1.05,
-            "top_p": 0.8,
-            "top_k": 20,
-        }
-
-
-        if temperature > 0:
-
-            generation_kwargs.update({
-
-                "temperature":
-                    temperature,
-
-                "do_sample":
-                    True
-
-            })
-
-        else:
-
-            generation_kwargs.update({
-
-                "do_sample":
-                    False
-
-            })
-
-
-        with torch.no_grad():
-
-            output = model.generate(
-                **inputs,
-                **generation_kwargs
-            )
-
-
-        new_tokens = output[0][
-            inputs["input_ids"].shape[1]:
-        ]
-
-
-        text = tokenizer.decode(
-            new_tokens,
-            skip_special_tokens=True
-        )
-
-
-        return text.strip()
+        for start in range(0, len(text), 24):
+            yield text[start:start + 24]
 
 
 runtime = ModelRuntime()
