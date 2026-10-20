@@ -12,7 +12,3 @@ sentencepiece>=0.2
 pillow>=10.0
 imageio>=2.36
 imageio-ffmpeg>=0.5
-datasets>=3.0
-trl>=0.12
-peft>=0.14
-anthropic>=0.69.0
