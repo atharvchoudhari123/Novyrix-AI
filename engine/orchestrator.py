@@ -3,6 +3,7 @@ from __future__ import annotations
 from .advanced_agent import advanced_planner
 from .agent import agent
 from .agent_policy import allowed_tools
+from .knowledge_store import format_research_result, knowledge_store
 
 
 class AgentOrchestrator:
@@ -20,6 +21,16 @@ class AgentOrchestrator:
         ]
         if not decisions:
             return []
+        # A close, recent match avoids another network request. It is still
+        # attributed and treated as cached search evidence, not model knowledge.
+        if any(decision.tool == "web_search" for decision in decisions):
+            cached = knowledge_store.find(user_text)
+            if cached:
+                return [{
+                    "tool": "web_search",
+                    "reason": "Reused recent source-linked research for a closely matching question.",
+                    "result": {"verified": True, "results": cached.get("results", []), "saved_at": cached.get("saved_at"), "cached": True},
+                }]
         return agent.run(decisions)
 
     def maybe_tool(self, model_id: str, user_text: str):
@@ -44,6 +55,17 @@ class AgentOrchestrator:
             "do not claim anything beyond what they establish:\n"
             + evidence
         )
+
+    def research_answer(self, tool_results):
+        """Persist successful search results and return a readable cited answer."""
+        for item in tool_results or []:
+            if item.get("tool") != "web_search":
+                continue
+            result = item.get("result", {})
+            if not result.get("cached"):
+                knowledge_store.remember(result.get("query", ""), result)
+            return format_research_result(result, cached=bool(result.get("cached")))
+        return None
 
 
 orchestrator = AgentOrchestrator()

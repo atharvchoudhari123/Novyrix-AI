@@ -67,9 +67,9 @@ def _save_account(account_id: str, data: dict):
 
 def _model_allowed(model_id: str, membership: str) -> bool:
     return (
-        model_id == "novyrix-3.2"
-        or (model_id == "novyrix-4.0" and membership in {"core", "premium"})
-        or (model_id == "novyrix-5.7" and membership == "premium")
+        model_id == "novyrix-4.0"
+        or (model_id == "novyrix-5.0" and membership in {"core", "premium"})
+        or (model_id == "novyrix-6.0" and membership == "premium")
     )
 
 def _is_dev_session(token: str | None) -> bool:
@@ -125,12 +125,12 @@ class ChatFile(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    model: str = "novyrix-4.0"
+    model: str = "novyrix-5.0"
     messages: list[Message] = Field(default_factory=list)
     files: list[ChatFile] = Field(default_factory=list)
     mode: str = "chat"
     stream: bool = False
-    max_new_tokens: int = 768
+    max_new_tokens: int = 1536
     plugins: list[str] = Field(default_factory=list)
 
 
@@ -173,6 +173,7 @@ async def models():
                 "object": "model",
                 "owned_by": "novyrix",
                 "display_name": model["display_name"],
+                "tier": model.get("tier"),
                 "capabilities": model.get("capabilities", []),
             }
             for model in get_models()

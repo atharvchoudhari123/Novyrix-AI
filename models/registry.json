@@ -1,24 +1,12 @@
 {
   "models": [
     {
-      "id": "novyrix-3.2",
-      "display_name": "Novyrix 3.2",
-      "tier": "fast",
-      "checkpoint_env": "NOVYRIX_3_2_CHECKPOINT",
-      "capabilities": [
-        "chat",
-        "code",
-        "files",
-        "image",
-        "video",
-        "agent_tools"
-      ]
-    },
-    {
       "id": "novyrix-4.0",
       "display_name": "Novyrix 4.0",
-      "tier": "general",
-      "checkpoint_env": "NOVYRIX_4_0_CHECKPOINT",
+      "tier": "low",
+      "max_new_tokens": 512,
+      "temperature": 0.6,
+      "checkpoint_env": "NOVYRIX_MODEL_4_0_CHECKPOINT",
       "capabilities": [
         "chat",
         "code",
@@ -29,10 +17,28 @@
       ]
     },
     {
-      "id": "novyrix-5.7",
-      "display_name": "Novyrix 5.7",
-      "tier": "advanced",
-      "checkpoint_env": "NOVYRIX_5_7_CHECKPOINT",
+      "id": "novyrix-5.0",
+      "display_name": "Novyrix 5.0",
+      "tier": "medium",
+      "max_new_tokens": 1024,
+      "temperature": 0.65,
+      "checkpoint_env": "NOVYRIX_MODEL_5_0_CHECKPOINT",
+      "capabilities": [
+        "chat",
+        "code",
+        "files",
+        "image",
+        "video",
+        "agent_tools"
+      ]
+    },
+    {
+      "id": "novyrix-6.0",
+      "display_name": "Novyrix 6.0",
+      "tier": "high",
+      "max_new_tokens": 1536,
+      "temperature": 0.65,
+      "checkpoint_env": "NOVYRIX_MODEL_6_0_CHECKPOINT",
       "capabilities": [
         "chat",
         "code",

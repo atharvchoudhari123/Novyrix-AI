@@ -141,21 +141,30 @@ def detect_mode(user_message: str, explicit_mode: Optional[str] = None) -> str:
 
 
 def build_tool_system_prompt(model_name, mode="chat", tools=None, user_message=None):
-    base = build_system_prompt(model_name, mode, user_message=user_message)
-    if user_message:
-        base += "\n\n" + advanced_planner.prompt_block(user_message)
-    if not tools:
-        return base
-    tool_lines = "\n".join(f"- {item['name']}: {item['description']}" for item in tools)
-    return (
-        base
-        + "\n\nAgent tool policy:\n"
-        + "You are connected to a tool engine. Use tool results as evidence. "
-        + "Never claim an action happened unless a tool actually returned success. "
-        + "When web_search returns evidence, only state facts supported by that evidence. "
-        + "If the search fails, is empty, or does not verify the requested fact, say so instead of filling the gap from memory or guessing."
-        + "\nAvailable tools:\n"
-    )
+    """Build a compact prompt; scratch checkpoints have byte-sized contexts."""
+    if mode in (None, "", "auto"):
+        mode = detect_mode(user_message or "", mode)
+    mode = (mode or "chat").lower()
+    parts = [
+        f"You are {model_name}, Novyrix AI. Be accurate and direct; do not invent facts or claim unperformed actions.",
+        {
+            "code": "For code requests, provide complete runnable code.",
+            "debug": "Use the provided error as evidence and give a practical fix.",
+            "files": "Use supplied file contents as evidence.",
+            "security": "Report evidence-backed risks and fixes.",
+            "writing": "Preserve meaning and match the requested tone.",
+        }.get(mode, "Answer the user's request directly."),
+    ]
+    lower = model_name.lower()
+    if "4.0" in lower:
+        parts.append("Light tier: daily tasks and basic code.")
+    elif "5.0" in lower:
+        parts.append("Balanced tier: coding, debugging, and general tasks.")
+    elif "6.0" in lower:
+        parts.append("High tier: complex tasks; check assumptions and edge cases.")
+    if tools:
+        parts.append("Treat returned tool results as evidence; don't claim a tool action without success.")
+    return " ".join(parts)
 
 
 def build_system_prompt(model_name, mode="chat", user_message=None):
@@ -170,27 +179,36 @@ def build_system_prompt(model_name, mode="chat", user_message=None):
 
     lower = model_name.lower()
 
-    if "3.2" in lower:
+    if "4.0" in lower:
         prompt += """
         
 Tier behavior:
-You are the lightweight Novyrix 3.2 tier. Prioritize straightforward tasks,
-concise answers, and practical solutions.
+You are the lightweight Novyrix 4.0 tier. Prioritize straightforward tasks,
+concise answers, everyday writing, simple questions, and basic coding tasks.
+For code, prefer one small, complete solution with brief run instructions. If a
+request needs substantial architecture, multiple files, or deep debugging, say
+that 5.0 or 6.0 is better suited rather than pretending to have completed it.
 """.strip()
-    elif "4.0" in lower:
+    elif "5.0" in lower:
         prompt += """
         
 Tier behavior:
-You are the balanced Novyrix 4.0 tier. Handle general-purpose reasoning,
-coding, debugging, and explanations with useful detail.
+You are the balanced Novyrix 5.0 tier. Handle general-purpose reasoning,
+coding, debugging, and explanations with useful detail. For coding tasks,
+clarify requirements only when a missing detail changes the design; otherwise
+choose sensible defaults, provide complete runnable code, and include setup and
+verification steps. For multi-file work, outline the files and their roles.
 """.strip()
-    elif "5.7" in lower:
+    elif "6.0" in lower:
         prompt += """
         
 Tier behavior:
-You are the high-capacity Novyrix 5.7 tier. For complex tasks, reason
+You are the high-capacity Novyrix 6.0 tier. For complex tasks, reason
 carefully, check assumptions, consider edge cases, and provide technically
-precise solutions.
+precise solutions. For advanced software work, break the task into components,
+account for errors and security, provide complete implementation details, and
+include practical tests or verification steps. Be explicit about assumptions
+and limits; never claim execution or verification that did not happen.
 """.strip()
 
     return prompt.strip()
