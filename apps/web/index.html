@@ -835,21 +835,21 @@ class="model"
 >
 
 
-<option value="novyrix-3.2">
-Novyrix 3.2
+<option value="novyrix-4.0">
+Novyrix 4.0 — Low
 </option>
 
 
 <option
-value="novyrix-4.0"
+value="novyrix-5.0"
 selected
 >
-Novyrix 4.0
+Novyrix 5.0 — Medium
 </option>
 
 
-<option value="novyrix-5.7">
-Novyrix 5.7
+<option value="novyrix-6.0">
+Novyrix 6.0 — High
 </option>
 
 
@@ -1022,7 +1022,7 @@ Request
 
 
 <span id="codeModel">
-Novyrix 4.0
+Novyrix 5.0
 </span>
 
 
@@ -1178,10 +1178,10 @@ async function refreshAccount(){
             devModeButton.setAttribute("aria-pressed", String(devModeEnabled));
             const membership=data.membership || "free";
             [...model.options].forEach(option=>{
-                option.disabled=!devModeEnabled && ((option.value==="novyrix-4.0" && membership==="free") || (option.value==="novyrix-5.7" && membership!=="premium"));
+                option.disabled=!devModeEnabled && ((option.value==="novyrix-5.0" && membership==="free") || (option.value==="novyrix-6.0" && membership!=="premium"));
             });
             if(model.selectedOptions[0]?.disabled){
-                model.value="novyrix-3.2";
+                model.value="novyrix-4.0";
             }
         }
     }catch(error){ tokenPill.textContent="Tokens: unavailable"; }
@@ -1190,7 +1190,7 @@ refreshAccount();
 setInterval(refreshAccount,30000);
 
 billingButton.onclick=()=>{
-    alert("Billing UI is ready for Stripe integration. Core unlocks Novyrix 4.0; Premium unlocks Novyrix 5.7.");
+    alert("Billing UI is ready for Stripe integration. Core unlocks Novyrix 5.0; Premium unlocks Novyrix 6.0.");
 };
 
 devModeButton.onclick=async()=>{

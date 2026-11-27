@@ -12,9 +12,9 @@ from train_tier import main as train_tier_main
 
 
 def main() -> None:
-    os.environ.setdefault("NOVYRIX_TIER", "3.2")
-    os.environ.setdefault("NOVYRIX_DATASET", str(ROOT / "training/data/novyrix_3_2.jsonl"))
-    os.environ.setdefault("NOVYRIX_OUTPUT", str(ROOT / "training/output/novyrix-3.2-scratch"))
+    os.environ.setdefault("NOVYRIX_TIER", "4.0")
+    os.environ.setdefault("NOVYRIX_DATASET", str(ROOT / "training/data/renamed/novyrix_4_0.jsonl"))
+    os.environ.setdefault("NOVYRIX_OUTPUT", str(ROOT / "training/output/novyrix-tier-4.0-scratch"))
     train_tier_main()
 
 

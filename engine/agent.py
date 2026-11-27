@@ -58,12 +58,23 @@ class NovyrixAgent:
         "use", "upgrade", "migrate", "build", "fix", "debug", "deploy",
     )
 
+    _factual_question = re.compile(
+        r"^(?:who\b|when\b|where\b|which\b|how many\b|how much\b|"
+        r"what (?:year|date|time|company|country|city|models?|causes?|does|did|is|are|was|were)\b|"
+        r"(?:list|name) (?:the )?[\w-]+)", re.IGNORECASE,
+    )
+
     @classmethod
     def _needs_web_research(cls, text: str, intent: str) -> tuple[bool, str]:
         lower = (text or "").lower()
 
         if any(phrase in lower for phrase in cls._web_explicit_words):
             return True, "The user explicitly requested web research or current documentation."
+
+        # The scratch model cannot reliably estimate its own knowledge. Search
+        # concrete factual lookups instead of treating an incoherent guess as certainty.
+        if cls._factual_question.search((text or "").strip()):
+            return True, "This is a factual lookup; consult sources rather than rely on a guess."
 
         # Technical implementation questions sometimes depend on changing APIs,
         # package versions, or framework behavior. Search only when the prompt

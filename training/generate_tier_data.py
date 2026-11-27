@@ -3,7 +3,7 @@ import json
 import random
 
 root = Path.cwd()
-data_dir = root / "training" / "data"
+data_dir = root / "training" / "data" / "renamed"
 data_dir.mkdir(parents=True, exist_ok=True)
 seed = 20260916
 
@@ -89,9 +89,9 @@ variants = {
         ("Why should training examples include failure cases?", "Failure cases teach the model to recognize invalid inputs, uncertainty, and situations where it should explain a limitation instead of fabricating a result."),
     ],
     "identity": [
-        ("What is the role of Novyrix 3.2?", "Novyrix 3.2 is the lightweight tier for straightforward tasks and lower resource use."),
-        ("What is the role of Novyrix 4.0?", "Novyrix 4.0 is the balanced tier for general-purpose reasoning and coding work."),
-        ("What is the role of Novyrix 5.7?", "Novyrix 5.7 is the highest-capacity tier in this project for demanding supported reasoning and coding workloads."),
+        ("What is the role of Novyrix 4.0?", "Novyrix 4.0 is the lightweight tier for everyday tasks and basic coding."),
+        ("What is the role of Novyrix 5.0?", "Novyrix 5.0 is the balanced tier for general-purpose reasoning, coding, and debugging."),
+        ("What is the role of Novyrix 6.0?", "Novyrix 6.0 is the highest-capacity tier in this project for demanding supported reasoning and coding workloads."),
     ],
     "plugins": [
         ("How should an authorized external action be handled?", "Confirm the action parameters, use the connected service through its supported interface, report what was actually done, and surface any failure."),
@@ -100,19 +100,19 @@ variants = {
 }
 
 tiers = {
-    "3.2": (300, {"identity":1,"reasoning":1,"coding":2,"files":2,"plugins":1,"security":1,"system":1,"media":1,"writing":2,"math":2,"web":1,"training":1}),
-    "4.0": (450, {"identity":1,"reasoning":3,"coding":3,"files":2,"plugins":2,"security":2,"system":2,"media":2,"writing":2,"math":2,"web":2,"training":2}),
-    "5.7": (600, {"identity":1,"reasoning":4,"coding":4,"files":3,"plugins":3,"security":3,"system":3,"media":2,"writing":2,"math":3,"web":3,"training":3}),
+    "4.0": (300, {"identity":1,"reasoning":1,"coding":2,"files":2,"plugins":1,"security":1,"system":1,"media":1,"writing":2,"math":2,"web":1,"training":1}),
+    "5.0": (450, {"identity":1,"reasoning":3,"coding":3,"files":2,"plugins":2,"security":2,"system":2,"media":2,"writing":2,"math":2,"web":2,"training":2}),
+    "6.0": (600, {"identity":1,"reasoning":4,"coding":4,"files":3,"plugins":3,"security":3,"system":3,"media":2,"writing":2,"math":3,"web":3,"training":3}),
 }
 
 
 def make_example(category, question, answer, tier, index):
-    if tier == "3.2":
-        system = "You are Novyrix 3.2, a concise and practical local AI assistant."
-    elif tier == "4.0":
-        system = "You are Novyrix 4.0, a balanced local AI assistant. Give accurate, useful explanations and practical steps."
+    if tier == "4.0":
+        system = "You are Novyrix 4.0, a concise and practical local AI assistant for everyday tasks and basic coding."
+    elif tier == "5.0":
+        system = "You are Novyrix 5.0, a balanced local AI assistant. Give accurate, useful explanations and practical coding steps."
     else:
-        system = "You are Novyrix 5.7, a high-capacity local AI assistant. Reason carefully, verify assumptions, and give technically precise answers."
+        system = "You are Novyrix 6.0, a high-capacity local AI assistant. Reason carefully, verify assumptions, and give technically precise answers."
     prefixes = ["", "Please ", "Can you ", "I need to know: ", "Explain "]
     q = question
     if category not in {"coding", "math"} and index % 5 == 0:

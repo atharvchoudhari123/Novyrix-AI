@@ -59,18 +59,60 @@ class ModelRuntime:
             return loaded
 
     @staticmethod
-    def make_prompt(messages) -> str:
+    def make_prompt(messages, context_length: int | None = None) -> str:
         parts = []
         for message in messages:
-            role = str(message.get("role", "user")).upper()
-            content = message.get("content", "")
-            parts.append(f"{role}: {content}")
-        parts.append("ASSISTANT:")
-        return "\n\n".join(parts)
+            role = str(message.get("role", "user")).strip().lower()
+            if role not in {"system", "user", "assistant"}:
+                role = "user"
+            content = str(message.get("content", ""))
+            parts.append(f"<|im_start|>{role}\n{content}<|im_end|>")
+        parts.append("<|im_start|>assistant\n")
+        prompt = "\n".join(parts)
+        if context_length is None or len(prompt.encode("utf-8")) + 1 <= context_length:
+            return prompt
+
+        system = next(
+            (str(message.get("content", "")) for message in messages if message.get("role") == "system"),
+            "",
+        )
+        latest_user = next(
+            (str(message.get("content", "")) for message in reversed(messages) if message.get("role") == "user"),
+            "",
+        )
+
+        def format_prompt(system_text: str, user_text: str) -> str:
+            return (
+                f"<|im_start|>system\n{system_text}<|im_end|>\n"
+                f"<|im_start|>user\n{user_text}<|im_end|>\n"
+                "<|im_start|>assistant\n"
+            )
+
+        target_bytes = max(0, context_length - 1)  # reserve one token for BOS
+        overhead = len(format_prompt("", "").encode("utf-8"))
+        available = max(0, target_bytes - overhead)
+        system_budget = min(len(system.encode("utf-8")), min(192, available // 4))
+        user_budget = max(0, available - system_budget)
+
+        def fit_utf8(text: str, budget: int) -> str:
+            data = text.encode("utf-8")
+            if len(data) <= budget:
+                return text
+            marker = b"...[omitted]..."
+            if budget <= len(marker):
+                return data[:budget].decode("utf-8", errors="ignore")
+            keep = budget - len(marker)
+            prefix_size = (keep * 2) // 3
+            suffix_size = keep - prefix_size
+            prefix = data[:prefix_size].decode("utf-8", errors="ignore")
+            suffix = data[-suffix_size:].decode("utf-8", errors="ignore") if suffix_size else ""
+            return prefix + marker.decode("ascii") + suffix
+
+        return format_prompt(fit_utf8(system, system_budget), fit_utf8(latest_user, user_budget))
 
     def generate(self, checkpoint, messages, max_new_tokens=512, temperature=0.7):
         tokenizer, model, device = self.load_model(checkpoint)
-        prompt = self.make_prompt(messages)
+        prompt = self.make_prompt(messages, context_length=model.config.context_length)
         prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
         input_ids = torch.tensor(
             [[model.config.bos_id, *prompt_ids]], dtype=torch.long, device=device
@@ -79,9 +121,15 @@ class ModelRuntime:
             input_ids,
             max_new_tokens=max_new_tokens,
             temperature=temperature,
+            stop_sequences=[tokenizer.encode("<|im_end|>", add_special_tokens=False)],
         )
         answer_ids = generated[0, input_ids.shape[1]:].tolist()
-        return tokenizer.decode(answer_ids).strip()
+        answer = tokenizer.decode(answer_ids)
+        # The training corpus represents turn boundaries as readable strings,
+        # so trim them after decoding as well as stopping generation on them.
+        for marker in ("<|im_end|>", "<|im_start|>"):
+            answer = answer.split(marker, 1)[0]
+        return answer.strip()
 
     def stream(self, checkpoint, messages, max_new_tokens=512, temperature=0.7):
         """Yield response text in chunks; generation currently completes before yielding."""

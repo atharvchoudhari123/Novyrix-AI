@@ -2,4 +2,14 @@
 .venv/
 __pycache__/
 *.py[cod]
+.DS_Store
+
+data/research_memory.json
+data/research_memory.json.tmp
+storage/accounts/*.json
+
 training/output/*-scratch/
+training/data/external/
+training/data/prepared/
+training/data/renamed/
+training/data/novyrix_*.jsonl
