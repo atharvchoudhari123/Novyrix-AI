@@ -16,24 +16,33 @@ from .response_quality import (
 from .tools.calculator import calculate
 
 
-_ARITHMETIC_QUESTION = re.compile(
-    r"\s*(?:(?:what\s+is|what's|calculate|compute)\s+)?"
-    r"([0-9().+*/%\-\s]+)\s*[?.!]*\s*",
+_ARITHMETIC_PREFIX = re.compile(
+    r"^(?:what\s+is|what's|whats|calculate|compute|solve)\s+",
     re.IGNORECASE,
 )
+_ARITHMETIC_CHARACTERS = re.compile(r"^[0-9().+*/%\-\s]+$")
 
 
 def _answer_simple_arithmetic(text):
     """Answer plain arithmetic locally, without web search or LM sampling."""
-    match = _ARITHMETIC_QUESTION.fullmatch(text or "")
-    if not match:
+    expression = _ARITHMETIC_PREFIX.sub("", (text or "").strip())
+    expression = re.sub(r"[?.!]+\s*$", "", expression).strip()
+    expression = re.sub(
+        r"(?<=[0-9.)])\s+times\s+(?=[0-9.(])", "*", expression,
+        flags=re.IGNORECASE,
+    )
+    expression = re.sub(
+        r"(?<=[0-9.)])\s*[x×]\s*(?=[0-9.(])", "*", expression,
+        flags=re.IGNORECASE,
+    )
+    expression = expression.replace("÷", "/").replace("−", "-")
+    if not _ARITHMETIC_CHARACTERS.fullmatch(expression):
         return None
-    expression = match.group(1).strip()
     if not any(operator in expression for operator in "+-*/%"):
         return None
     try:
         result = calculate(expression)
-    except (ArithmeticError, SyntaxError, ValueError):
+    except (ArithmeticError, SyntaxError, ValueError, OverflowError):
         return None
     if isinstance(result, float) and result.is_integer():
         result = int(result)
