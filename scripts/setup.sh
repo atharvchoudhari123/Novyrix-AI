@@ -8,9 +8,6 @@ python3 -m venv .venv
 
 pip install -r requirements.txt
 
-chmod +x train_all.sh
-
-./train_all.sh
 mkdir -p storage/uploads
 mkdir -p models/weights
 mkdir -p training/data

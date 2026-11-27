@@ -32,6 +32,22 @@ def _answer_simple_arithmetic(text):
         flags=re.IGNORECASE,
     )
     expression = re.sub(
+        r"(?<=[0-9.)])\s+multiplied\s+by\s+(?=[0-9.(])", "*", expression,
+        flags=re.IGNORECASE,
+    )
+    expression = re.sub(
+        r"(?<=[0-9.)])\s+divided\s+by\s+(?=[0-9.(])", "/", expression,
+        flags=re.IGNORECASE,
+    )
+    expression = re.sub(
+        r"(?<=[0-9.)])\s+plus\s+(?=[0-9.(])", "+", expression,
+        flags=re.IGNORECASE,
+    )
+    expression = re.sub(
+        r"(?<=[0-9.)])\s+minus\s+(?=[0-9.(])", "-", expression,
+        flags=re.IGNORECASE,
+    )
+    expression = re.sub(
         r"(?<=[0-9.)])\s*[x×]\s*(?=[0-9.(])", "*", expression,
         flags=re.IGNORECASE,
     )

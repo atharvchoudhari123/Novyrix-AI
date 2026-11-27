@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import re
+import subprocess
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
@@ -95,14 +96,30 @@ def search_web(query: str, max_results: int = 6, max_chars: int = 12000):
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             text = response.read().decode("utf-8", errors="ignore")
-    except Exception as exc:
-        return {
-            "query": query,
-            "source": "duckduckgo",
-            "results": [],
-            "verified": False,
-            "error": f"Web search failed: {exc}",
-        }
+    except Exception as urllib_error:
+        # On macOS, urllib's Python may not use the OS trust store. Fall back
+        # to system curl, which still verifies TLS certificates.
+        try:
+            response = subprocess.run(
+                [
+                    "curl", "--fail", "--location", "--silent", "--show-error",
+                    "--max-time", "12", "--max-filesize", "5000000",
+                    "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X) Novyrix/1.0",
+                    "--header", "Accept: text/html", url,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=13,
+            )
+            text = response.stdout.decode("utf-8", errors="ignore")
+        except Exception as curl_error:
+            return {
+                "query": query,
+                "source": "duckduckgo",
+                "results": [],
+                "verified": False,
+                "error": f"Web search failed (urllib: {urllib_error}; system curl: {curl_error})",
+            }
 
     parser = _DuckDuckGoParser()
     parser.feed(text)
