@@ -1,7 +1,4 @@
-[Docs](apps/web/index.html)
-
 # Novyrix
-
 Novyrix is a self-hosted AI platform.
 
 It contains:
@@ -169,114 +166,10 @@ steps on filtered public/curated data. Their validation loss is not a measure of
 answer correctness: they can still produce incoherent text. More useful
 capability requires substantially more high-quality data and compute.
 
-## Capabilities
 
-Novyrix is designed to support:
+### Contribute
+If Novyrix can’t answer a question, it may search the web and save the results in a local cache. You can turn cached results into training examples with a command. Review the examples and their sources before including them in training, then run the training script to update the checkpoint. Restart the API afterward and test the model.
 
-- Chat
-- Multi-turn conversations
-- Coding
-- Debugging
-- File analysis
-- Website generation
-- Plugin/tool integration
-- Defensive security review
-- Image generation
-- Video generation
-- Custom model training
-- Multiple model tiers
+Have an idea for a behavior change or another improvement? I’d be happy to create a branch for your contribution and credit you.
 
-## Important
-
-The quality of each Novyrix model depends on:
-
-- Training data
-- Training configuration
-- Available compute
-- Evaluation and iteration
-
-Training uses pinned, permissively licensed external examples by default
-(Apache-2.0 general conversations and MIT Python instructions) alongside
-Novyrix examples. Training remains from random initialization—no third-party
-model weights are loaded. Tier budgets scale from 5k to 24k steps, with more
-coding data for 5.0 and the broadest mix for 6.0. These are still small scratch
-models, not assistants that can answer anything. See `training/README.md` for
-source details, overrides, and safe retraining steps.
-
-The training code and initialized weights are Novyrix-owned. The current small
-datasets are not sufficient to produce strong models. Do not infer coding or
-factual reliability from tier names; evaluate each trained checkpoint.
-
-## Agent engine
-
-Novyrix includes a shared agent/tool layer for all model tiers. The current deterministic router can use the calculator, workspace file tools, debugging helpers, tests, and selective web research. Model selection changes the scratch checkpoint and generation budget; it does not grant broader tool permissions.
-
-In chat mode, the runtime handles simple greetings directly and suppresses
-obviously corrupted model output with a readable warning. This guard cannot
-verify factual accuracy or turn an undertrained checkpoint into a capable model.
-
-Workspace write tools are restricted to the Novyrix project root. Web tools fetch HTTP(S) context with explicit timeouts.
-
-Factual lookup questions (for example, “list Tesla models” or “what year did
-this happen?”) trigger web search because a small scratch model cannot reliably
-recognize when it is uncertain. Research replies show attributed search snippets
-and source links directly rather than asking the model to paraphrase them.
-Successful structured results are cached locally in
-`data/research_memory.json` (override with `NOVYRIX_KNOWLEDGE_PATH`) and can be
-reused for closely matching questions for up to 30 days. Failed searches and raw
-web pages are not saved. This is retrieval memory, not training: it does not
-change model weights or add examples to the training dataset. Search snippets
-are not independent verification; follow the links for context and check
-time-sensitive claims.
-
-## Tokens and memberships
-
-The API now supports 100 daily tokens by default, with each chat message costing 5 tokens. Daily tokens reset by UTC date. Purchased credits are separate from the daily allowance.
-
-Membership access is enforced by the API:
-
-- Free: Novyrix 4.0
-- Core: Novyrix 4.0 + 5.0
-- Premium: Novyrix 4.0 + 5.0 + 6.0
-
-The account endpoints are `/v1/account`, `/v1/account/credits`, and `/v1/account/membership`. The credits and membership write endpoints are placeholders for future Stripe Checkout/webhook integration; they are not payment verification.
-
-### Local developer mode
-
-The Developer Mode button unlocks all three Novyrix text tiers without
-membership or token deductions for a 12-hour session. The server validates the
-password and sets an HttpOnly session cookie; the password is not shipped to
-the browser. Configure `NOVYRIX_DEV_MODE_PASSWORD` in your private `.env` file
-and never commit that file. This is a local development convenience, not a
-production authentication system.
-# Novyrix-AI
-
-
-## Novyrix Advanced beta
-
-The `novrix-advanced-beta` branch adds an experimental execution layer focused on
-making Novyrix feel like its own capable assistant rather than copying another
-assistant's personality.
-
-Advanced beta adds:
-
-- broad request classification instead of a small coding keyword list
-- explicit task planning before generation
-- multi-tool routing when a task benefits from tools
-- coding/build/debug/research/file/math workflows
-- tool evidence injection so the model can reason from actual results
-- the same Novyrix membership and token enforcement
-- a clear distinction between what Novyrix completed and what it could not execute
-
-The planner is deliberately deterministic and transparent. It does not pretend
-that a small local model has frontier-level reasoning. The model remains the
-language-generation layer, while the Advanced planner and tool system provide
-structure and execution support.
-
-For local testing, enable:
-
-```env
-NOVYRIX_ADVANCED_BETA=true
-```
-
-The experimental branch does not change `main`.
+Thank you for supporting Novyrix and helping me build it!
