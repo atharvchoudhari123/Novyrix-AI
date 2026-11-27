@@ -13,3 +13,4 @@ training/data/external/
 training/data/prepared/
 training/data/renamed/
 training/data/novyrix_*.jsonl
+training/data/research_cache/

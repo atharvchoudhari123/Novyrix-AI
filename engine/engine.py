@@ -49,6 +49,24 @@ def _answer_simple_arithmetic(text):
     return f"{expression} = {result}"
 
 
+def _response_matches_request(answer, user_message):
+    """Reject an obvious format mismatch: code blocks for prose questions."""
+    if not (answer or "").lstrip().startswith("```"):
+        return True
+    asks_for_code = re.search(
+        r"\b(?:write|generate|create|build|make|implement|show|provide|give me)\b"
+        r".{0,80}\b(?:code|script|program|function|class)\b",
+        (user_message or "").lower(),
+        re.DOTALL,
+    )
+    asks_for_code = asks_for_code or re.search(
+        r"\b(?:code|script|program|function|class)\b.{0,50}\b(?:example|snippet)\b",
+        (user_message or "").lower(),
+        re.DOTALL,
+    )
+    return bool(asks_for_code)
+
+
 class NovyrixEngine:
     def __init__(self):
         self.orchestrator = AgentOrchestrator()
@@ -126,7 +144,7 @@ class NovyrixEngine:
             ),
             temperature=float(model.get("temperature", 0.7)),
         )
-        if not tool_results and not is_readable_response(answer):
+        if not is_readable_response(answer) or not _response_matches_request(answer, user_message):
             return UNREADABLE_FALLBACK
         return answer
 
@@ -202,7 +220,7 @@ class NovyrixEngine:
             ),
             temperature=float(model.get("temperature", 0.7)),
         ))
-        if not tool_results and not is_readable_response(answer):
+        if not is_readable_response(answer) or not _response_matches_request(answer, user_message):
             yield UNREADABLE_FALLBACK
             return
         for start in range(0, len(answer), 24):

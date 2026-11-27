@@ -22,6 +22,23 @@ _WORDS = re.compile(r"[A-Za-z]+|\d+(?:[.,]\d+)*")
 _REPEATED_CHARACTER = re.compile(r"([^\s])\1{3,}", re.IGNORECASE)
 _REPEATED_CHUNK = re.compile(r"([a-z]{1,3})\1{2,}", re.IGNORECASE)
 _FENCED_CODE = re.compile(r"```([a-zA-Z0-9_+-]*)[^\S\n]*\n(.*?)```", re.DOTALL)
+_BROKEN_PHRASES = re.compile(
+    r"\bmy\s+to\b"
+    r"|\bhere\s+are\s+the\s+(?:purpose|reason|answer|idea|result)\b"
+    r"|\b(?:is|are|was|were)\s+survive\b"
+    r"|\bin\s+a\s+complete\s+of\b"
+    r"|\bis\s+a\s+lower\s+to\b"
+    r"|\bto\s+the\s+looked\b",
+    re.IGNORECASE,
+)
+
+
+def _word_stem(word: str) -> str:
+    """A tiny suffix normalizer used only to detect obvious repetition loops."""
+    for suffix in ("ing", "ed", "es", "s"):
+        if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+            return word[:-len(suffix)]
+    return word
 UNREADABLE_FALLBACK = (
     "I couldn't produce a reliable answer, so I discarded the generated text. "
     "Try a simpler or more specific prompt; this model may need more training."
@@ -81,6 +98,8 @@ def is_readable_response(text: str) -> bool:
         return False
     if _REPEATED_CHARACTER.search(value) or _REPEATED_CHUNK.search(value):
         return False
+    if _BROKEN_PHRASES.search(value):
+        return False
     if value.count("```") % 2:
         return False
 
@@ -116,13 +135,27 @@ def is_readable_response(text: str) -> bool:
     if common_ratio < 0.16:
         return False
 
+    # Scratch models sometimes produce fluent-looking loops such as
+    # "the spectral claim ... trained ... trained ... training". Stop words
+    # can make that look readable by ratio alone, so check whether the actual
+    # content keeps cycling through the same few word stems.
+    content_stems = [
+        _word_stem(word)
+        for word in words
+        if word not in _COMMON_WORDS and len(word) >= 4
+    ]
+    if len(content_stems) >= 6:
+        repeated_content_ratio = 1 - len(set(content_stems)) / len(content_stems)
+        if repeated_content_ratio >= 0.3:
+            return False
+
     # Catch fluent-looking strings made mostly of invented words. Keep the
     # dictionary check limited to long prose so identifiers and code remain
     # valid; punctuation-heavy output is exempt from this prose heuristic.
     dictionary = _system_dictionary()
     content_words = [word for word in words if len(word) >= 4]
     prose_like = len(re.findall(r"[.!?,;:]", value)) < max(3, len(words) // 8)
-    if len(content_words) >= 12 and dictionary and prose_like:
+    if len(content_words) >= 8 and dictionary and prose_like:
         known_ratio = sum(word in dictionary for word in content_words) / len(content_words)
         if known_ratio < 0.78:
             return False

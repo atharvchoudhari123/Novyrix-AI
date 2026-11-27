@@ -49,6 +49,7 @@ if [[ "$USE_PUBLIC_DATA" == "true" ]]; then
 fi
 
 for tier in 4.0 5.0 6.0; do
+  safe_tier="${tier//./_}"
   case "$tier" in
     4.0)
       width=256; layers=4; heads=4; context=512; steps="${NOVYRIX_TRAIN_STEPS_4_0:-${NOVYRIX_TRAIN_STEPS:-5000}}"; batch=4; accum=2; lr=3e-4; instruction_fraction="${NOVYRIX_INSTRUCTION_FRACTION_4_0:-0.65}"
@@ -103,7 +104,20 @@ for tier in 4.0 5.0 6.0; do
       fi ;;
   esac
 
-  safe_tier="${tier//./_}"
+  # Research exports are opt-in and must be explicitly approved. Candidate
+  # exports are never consumed by a training run.
+  if [[ "${NOVYRIX_INCLUDE_RESEARCH_CACHE:-false}" == "true" ]]; then
+    research_examples="$ROOT/training/data/research_cache/novyrix_${safe_tier}_approved.jsonl"
+    research_manifest="$ROOT/training/data/research_cache/novyrix_${safe_tier}_approved.manifest.json"
+    if [[ ! -f "$research_examples" || ! -f "$research_manifest" ]]; then
+      echo "ERROR: approved research-cache data for Novyrix $tier is missing."
+      echo "Create candidates, review them, then approve: python3 training/prepare_research_cache.py --tier $tier; edit the candidate JSONL; rerun with --approved --license <accurate-license>."
+      exit 1
+    fi
+    dataset_paths+=("$research_examples")
+    source_manifest_paths+=("$research_manifest")
+  fi
+
   output="$OUTPUT_DIR/novyrix-tier-$tier-scratch"
   dataset_lines=0
   missing_dataset=""

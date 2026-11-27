@@ -69,6 +69,52 @@ At runtime, Novyrix can answer a close match from that same tier's reviewed
 correction directly. This is a small local fallback for those specific tasks;
 other requests still use the selected checkpoint and its unreadable-output guard.
 
+## Reuse cached web research
+
+The app searches selected factual/current-information questions (and explicit
+web requests), returns source-linked snippets, and saves successful results to
+`data/research_memory.json`. The lightweight router uses question wording and
+topic signals; a scratch model cannot reliably tell you when it is uncertain.
+The cache helps answer close repeat questions, but it does not update model
+weights.
+
+To export saved research as review candidates for a tier:
+
+```bash
+python3 training/prepare_research_cache.py --tier 4.0
+```
+
+Review the generated `training/data/research_cache/novyrix_4_0_candidates.jsonl`
+and verify that the source content is accurate and that each source permits
+training use. Then create the approved export, declaring the applicable license
+only if it is accurate for every included source:
+
+```bash
+python3 training/prepare_research_cache.py --tier 4.0 --approved --license CC-BY
+```
+
+The approval command reads the candidate JSONL you reviewed, so your edits are
+kept. Use `--input path/to/reviewed.jsonl` if you reviewed a copy elsewhere.
+
+Supported declarations are `CC0`, `CC-BY`, and `public-domain`. The script
+records source URLs and writes an approval manifest; it cannot check licenses
+or verify the snippets for you. Do not approve unverified or incompatible
+sources. Repeat for `5.0` or `6.0` if you want those tiers to receive the
+examples too. Approved exports are ignored by Git because they may contain
+locally collected material.
+
+To include approved cache exports in the next training run:
+
+```bash
+NOVYRIX_INCLUDE_RESEARCH_CACHE=true ./train_all.sh
+```
+
+Without that opt-in, the normal training corpora are used. This prepares
+examples and supplies them to training; the selected checkpoint changes only
+after the training run finishes successfully. These small cached exports are
+not a substitute for broad, verified training data, and including a wrong
+snippet can teach the model a wrong answer.
+
 These are corpus sizes, not a promise that each record is seen during one run.
 With the default step budgets, the trainer samples only a small fraction of the
 millions of available records. Reaching a full pass at the current batch sizes
